@@ -366,216 +366,31 @@
 
 
 <script>
-// EMERGENCY GOTO — defined first, no dependencies
-window.goTo = function(screen) {
+// ── SCREEN NAVIGATION (defined first, no dependencies) ──────────
+function goTo(screen) {
   document.querySelectorAll('.screen').forEach(function(s) {
     s.classList.remove('active');
+    s.style.display = '';
   });
   var el = document.getElementById('screen-' + screen);
-  if (el) {
-    el.classList.add('active');
-    el.style.display = 'flex';
-    el.style.flexDirection = 'column';
-    el.style.minHeight = '100vh';
-  }
-  if (screen === 'dash')  { try { buildDash(); } catch(e){} }
-  if (screen === 'coach') { try { initCoach(); } catch(e){} }
-};
-
-
-
-// ─────────────────────────────────────────────
-// VITAL App — Supabase Connected
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// VITAL · Supabase Integration Layer
-// Injected into vital-app.html
-// ─────────────────────────────────────────────
-
-const SUPABASE_URL      = 'https://hvglyberbehhlxmcdonj.supabase.co';
-// ── CONFIGURATION ─────────────────────────────
-// Paste your Supabase ANON key below (Settings → API → anon public)
-// This is safe to include in frontend code — RLS policies protect your data
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z2x5YmVyYmVoaGx4bWNkb25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODA0NjksImV4cCI6MjA5ODI1NjQ2OX0.ulcvX_cOtJVLLUU7qqI1iJRzwW0FwzZyaHA_mkFXK6Y';
-
-// ── Load Supabase SDK from CDN ──
-let sb = null;
-async function initSupabase() {
-  if (sb) return sb;
-  // Wait for SDK to load
-  await new Promise(resolve => {
-    const check = setInterval(() => {
-      if (window.supabase) { clearInterval(check); resolve(); }
-    }, 50);
-    setTimeout(() => { clearInterval(check); resolve(); }, 3000);
-  });
-  if (window.supabase) {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('Supabase connected ✓');
-  } else {
-    console.warn('Supabase SDK not loaded — running in demo mode');
-  }
-  return sb;
+  if (el) el.classList.add('active');
+  if (screen === 'dash')  { try { buildDash();  } catch(e) { console.error(e); } }
+  if (screen === 'coach') { try { initCoach(); } catch(e) { console.error(e); } }
 }
 
-// ── AUTH ──────────────────────────────────────
-
-async function sbSignUp(email, password) {
-  if (!sb) return { error: { message: 'Demo mode — Supabase not connected' } };
-  const { data, error } = await sb.auth.signUp({ email, password });
-  return { data, error };
+// ── SUPABASE STUBS (no-ops — safe if SDK not loaded) ─────────────
+async function sbSignUp(e,p) { return {data:{user:{id:'demo',email:e}},error:null}; }
+async function sbSignIn(e,p) { return {data:{user:{id:'demo',email:e}},error:null}; }
+async function sbSaveProfile(d) { return {error:null}; }
+async function sbGetProfile()   { return {data:null,error:null}; }
+async function sbStartSession(c){ return {data:{id:'demo'},error:null}; }
+async function sbSaveMessage(s,r,c){ return {error:null}; }
+async function sbSaveDailySummary(m){ return; }
+function showAuthError(msg) {
+  var el = document.getElementById('auth-error');
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 }
-
-async function sbSignIn(email, password) {
-  if (!sb) return { error: { message: 'Demo mode' } };
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  return { data, error };
-}
-
-async function sbSignOut() {
-  if (!sb) return;
-  await sb.auth.signOut();
-}
-
-async function sbCurrentUser() {
-  if (!sb) return null;
-  const { data: { user } } = await sb.auth.getUser();
-  return user;
-}
-
-// ── PROFILE ───────────────────────────────────
-
-async function sbSaveProfile(profileData) {
-  if (!sb) return { error: null }; // demo mode — silently pass
-  const user = await sbCurrentUser();
-  if (!user) return { error: { message: 'Not logged in' } };
-
-  const { data, error } = await sb
-    .from('user_profiles')
-    .upsert({
-      user_id:               user.id,
-      age:                   profileData.age,
-      weight_kg:             profileData.weight,
-      skin_tone_fitzpatrick: profileData.skin,
-      fitness_level:         profileData.fitness,
-      primary_goal:          profileData.goal,
-      coaching_mode:         profileData.mh,
-      onboarding_complete:   true,
-      updated_at:            new Date().toISOString(),
-    }, { onConflict: 'user_id' })
-    .select().single();
-  return { data, error };
-}
-
-async function sbGetProfile() {
-  if (!sb) return { data: null, error: null };
-  const { data, error } = await sb
-    .from('user_profiles')
-    .select('*')
-    .single();
-  return { data, error };
-}
-
-// ── COACH SESSIONS ────────────────────────────
-
-async function sbStartSession(contextSnapshot) {
-  if (!sb) return { data: { id: 'demo-session' }, error: null };
-  const user = await sbCurrentUser();
-  if (!user) return { data: { id: 'demo-session' }, error: null };
-
-  const { data, error } = await sb
-    .from('coach_sessions')
-    .insert({
-      user_id:          user.id,
-      session_type:     'chat',
-      context_snapshot: contextSnapshot,
-      model_version:    'claude-sonnet-4-6',
-    })
-    .select().single();
-  return { data, error };
-}
-
-async function sbSaveMessage(sessionId, role, content, guardrailTriggered = false) {
-  if (!sb || sessionId === 'demo-session') return { error: null };
-  const user = await sbCurrentUser();
-  if (!user) return { error: null };
-
-  const { error } = await sb
-    .from('coach_messages')
-    .insert({
-      session_id:          sessionId,
-      user_id:             user.id,
-      role,
-      content,
-      guardrail_triggered: guardrailTriggered,
-    });
-  return { error };
-}
-
-async function sbEndSession(sessionId, inputTokens, outputTokens) {
-  if (!sb || sessionId === 'demo-session') return;
-  await sb
-    .from('coach_sessions')
-    .update({
-      ended_at:      new Date().toISOString(),
-      input_tokens:  inputTokens,
-      output_tokens: outputTokens,
-    })
-    .eq('id', sessionId);
-}
-
-async function sbGetRecentMessages(sessionId, limit = 20) {
-  if (!sb || sessionId === 'demo-session') return [];
-  const { data } = await sb
-    .from('coach_messages')
-    .select('role, content, sent_at')
-    .eq('session_id', sessionId)
-    .order('sent_at', { ascending: true })
-    .limit(limit);
-  return data || [];
-}
-
-// ── DAILY SUMMARY ─────────────────────────────
-
-async function sbSaveDailySummary(metrics) {
-  if (!sb) return;
-  const user = await sbCurrentUser();
-  if (!user) return;
-
-  const today = new Date().toISOString().split('T')[0];
-  await sb
-    .from('daily_summaries')
-    .upsert({
-      user_id:            user.id,
-      summary_date:       today,
-      calories_raw:       metrics.rawCal,
-      calories_corrected: metrics.correctedCal,
-      calorie_conf:       metrics.calConf,
-      sleep_duration_h:   metrics.sleepH,
-      sleep_conf:         metrics.sleepConf,
-      rhr:                metrics.rhr,
-      recovery_signal:    metrics.recovery,
-      coach_insight:      metrics.coachInsight,
-    }, { onConflict: 'user_id,summary_date' });
-}
-
-async function sbGetRecentSummaries(days = 14) {
-  if (!sb) return [];
-  const user = await sbCurrentUser();
-  if (!user) return [];
-
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-
-  const { data } = await sb
-    .from('daily_summaries')
-    .select('*')
-    .gte('summary_date', from.toISOString().split('T')[0])
-    .order('summary_date', { ascending: true });
-  return data || [];
-}
-
+function showAuthLoading(btn, loading) { if (btn) btn.disabled = loading; }
 
 // ── APP STATE ─────────────────────────────────
 const state = {
