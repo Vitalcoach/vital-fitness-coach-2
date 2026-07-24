@@ -175,7 +175,7 @@
   .empty-state { text-align: center; color: var(--text-3); font-size: 13px; padding: 2rem; }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- Supabase SDK removed for beta testing -->
 </head>
 <body>
 
@@ -366,6 +366,23 @@
 
 
 <script>
+// EMERGENCY GOTO — defined first, no dependencies
+window.goTo = function(screen) {
+  document.querySelectorAll('.screen').forEach(function(s) {
+    s.classList.remove('active');
+  });
+  var el = document.getElementById('screen-' + screen);
+  if (el) {
+    el.classList.add('active');
+    el.style.display = 'flex';
+    el.style.flexDirection = 'column';
+    el.style.minHeight = '100vh';
+  }
+  if (screen === 'dash')  { try { buildDash(); } catch(e){} }
+  if (screen === 'coach') { try { initCoach(); } catch(e){} }
+};
+
+
 
 // ─────────────────────────────────────────────
 // VITAL App — Supabase Connected
