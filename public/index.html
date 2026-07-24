@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VITAL — AI fitness intelligence</title>
+<title>VITAL Fitness Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -174,8 +176,6 @@
   .full-center { display: flex; align-items: center; justify-content: center; flex: 1; }
   .empty-state { text-align: center; color: var(--text-3); font-size: 13px; padding: 2rem; }
 </style>
-
-<!-- Supabase SDK removed for beta testing -->
 </head>
 <body>
 
@@ -365,390 +365,301 @@
 
 
 
+
 <script>
-// ── SCREEN NAVIGATION (defined first, no dependencies) ──────────
-function goTo(screen) {
-  document.querySelectorAll('.screen').forEach(function(s) {
-    s.classList.remove('active');
-    s.style.display = '';
-  });
-  var el = document.getElementById('screen-' + screen);
-  if (el) el.classList.add('active');
-  if (screen === 'dash')  { try { buildDash();  } catch(e) { console.error(e); } }
-  if (screen === 'coach') { try { initCoach(); } catch(e) { console.error(e); } }
-}
+// VITAL Fitness Coach — Beta
 
-// ── SUPABASE STUBS (no-ops — safe if SDK not loaded) ─────────────
-async function sbSignUp(e,p) { return {data:{user:{id:'demo',email:e}},error:null}; }
-async function sbSignIn(e,p) { return {data:{user:{id:'demo',email:e}},error:null}; }
-async function sbSaveProfile(d) { return {error:null}; }
-async function sbGetProfile()   { return {data:null,error:null}; }
-async function sbStartSession(c){ return {data:{id:'demo'},error:null}; }
-async function sbSaveMessage(s,r,c){ return {error:null}; }
-async function sbSaveDailySummary(m){ return; }
-function showAuthError(msg) {
-  var el = document.getElementById('auth-error');
-  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
-}
-function showAuthLoading(btn, loading) { if (btn) btn.disabled = loading; }
-
-// ── APP STATE ─────────────────────────────────
-const state = {
-  fitness: 'trained', goal: 'performance', age: 31,
-  weight: 75, rhr: 58, hrv: 52, skin: 3, mh: 'neutral',
-  apiKey: '', obStep: 1,
-  currentUser: null,
-  sessionId: null,
-  totalInputTokens: 0,
-  totalOutputTokens: 0,
+// ── STATE ──────────────────────────────────────
+var state = {
+  fitness:'trained', goal:'performance', age:31,
+  weight:75, rhr:58, hrv:52, skin:3, mh:'neutral',
+  apiKey:'', obStep:1, sessionId:'demo'
 };
 
-const obSteps = 5;
-const obProgress = [14,28,57,71,86,100];
-
-// ── AUTH SCREENS ──────────────────────────────
-function showAuthError(msg) {
-  const el = document.getElementById('auth-error');
-  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
-}
-function showAuthLoading(btn, loading) {
-  if (btn) btn.disabled = loading;
-  const el = document.getElementById('auth-loading');
-  if (el) el.style.display = loading ? 'block' : 'none';
-}
-
-async function handleSignUp() {
-  const email    = document.getElementById('auth-email')?.value?.trim();
-  const password = document.getElementById('auth-password')?.value;
-  const btn      = document.getElementById('auth-submit-btn');
-  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
-  if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
-  // Demo mode — no Supabase
-  if (!sb) { state.currentUser = { id: 'demo', email }; goTo('onboard'); return; }
-  showAuthLoading(btn, true); showAuthError('');
-  const { data, error } = await sbSignUp(email, password);
-  showAuthLoading(btn, false);
-  if (error) { showAuthError(error.message); return; }
-  state.currentUser = data.user;
-  // New user — go to onboarding
-  goTo('onboard');
-}
-
-async function handleSignIn() {
-  const email    = document.getElementById('auth-email')?.value?.trim();
-  const password = document.getElementById('auth-password')?.value;
-  const btn      = document.getElementById('auth-submit-btn');
-  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
-  // Demo mode — no Supabase
-  if (!sb) { state.currentUser = { id: 'demo', email }; goTo('onboard'); return; }
-  showAuthLoading(btn, true); showAuthError('');
-  const { data, error } = await sbSignIn(email, password);
-  showAuthLoading(btn, false);
-  if (error) { showAuthError(error.message); return; }
-  state.currentUser = data.user;
-  // Load their profile
-  const { data: profile } = await sbGetProfile();
-  if (profile) {
-    state.fitness = profile.fitness_level  || state.fitness;
-    state.goal    = profile.primary_goal   || state.goal;
-    state.age     = profile.age            || state.age;
-    state.weight  = profile.weight_kg      || state.weight;
-    state.skin    = profile.skin_tone_fitzpatrick || state.skin;
-    state.mh      = profile.coaching_mode  || state.mh;
-    state.rhr     = profile.rhr_baseline   || state.rhr;
-    state.hrv     = profile.hrv_baseline   || state.hrv;
-  }
-  // Returning user with complete profile → go to dash
-  if (profile?.onboarding_complete) goTo('dash');
-  else goTo('onboard');
-}
-
-// Toggle between sign in / sign up
-function toggleAuthMode() {
-  const title    = document.getElementById('auth-title');
-  const subBtn   = document.getElementById('auth-submit-btn');
-  const toggleEl = document.getElementById('auth-toggle');
-  const modeEl   = document.getElementById('auth-mode');
-  const isSignIn = modeEl?.dataset.mode === 'signin';
-  if (modeEl) modeEl.dataset.mode = isSignIn ? 'signup' : 'signin';
-  if (title)  title.textContent   = isSignIn ? 'Create your account' : 'Welcome back';
-  if (subBtn) subBtn.textContent  = isSignIn ? 'Create account' : 'Sign in';
-  if (toggleEl) toggleEl.innerHTML = isSignIn
-    ? 'Already have an account? <a href="#" onclick="toggleAuthMode()">Sign in</a>'
-    : 'New to VITAL? <a href="#" onclick="toggleAuthMode()">Create account</a>';
-  if (subBtn) subBtn.onclick = isSignIn ? handleSignUp : handleSignIn;
-  showAuthError('');
-}
-
-// ── NAVIGATION ────────────────────────────────
+// ── NAVIGATION ─────────────────────────────────
 function goTo(screen) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + screen).classList.add('active');
+  var screens = document.querySelectorAll('.screen');
+  for (var i=0; i<screens.length; i++) screens[i].classList.remove('active');
+  var el = document.getElementById('screen-' + screen);
+  if (el) el.classList.add('active');
   if (screen === 'dash')  buildDash();
   if (screen === 'coach') initCoach();
 }
 
-// ── ONBOARDING ────────────────────────────────
+// ── ONBOARDING ─────────────────────────────────
 function pick(btn) {
-  const group = btn.dataset.group;
-  document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('sel'));
+  var group = btn.dataset.group;
+  var btns = document.querySelectorAll('[data-group="' + group + '"]');
+  for (var i=0; i<btns.length; i++) btns[i].classList.remove('sel');
   btn.classList.add('sel');
   state[group] = btn.dataset.val;
 }
 function pickSkin(el, val) {
-  document.querySelectorAll('.skin-swatch').forEach(s => s.classList.remove('sel'));
+  var swatches = document.querySelectorAll('.skin-swatch');
+  for (var i=0; i<swatches.length; i++) swatches[i].classList.remove('sel');
   el.classList.add('sel');
   state.skin = val;
 }
-
-async function obNext() {
+function obNext() {
   if (state.obStep === 3) {
     state.age    = parseInt(document.getElementById('f-age').value)    || 31;
     state.weight = parseInt(document.getElementById('f-weight').value) || 75;
     state.rhr    = parseInt(document.getElementById('f-rhr').value)    || 58;
     state.hrv    = parseInt(document.getElementById('f-hrv').value)    || 52;
   }
-  if (state.obStep < obSteps) {
+  if (state.obStep < 5) {
     document.getElementById('ob-' + state.obStep).classList.remove('active');
     state.obStep++;
     document.getElementById('ob-' + state.obStep).classList.add('active');
-    document.getElementById('ob-progress').style.width = obProgress[state.obStep - 1] + '%';
-    document.getElementById('ob-back-btn').style.display = state.obStep > 1 ? 'block' : 'none';
-    if (state.obStep === obSteps) document.getElementById('ob-next-btn').textContent = 'Go to my dashboard';
+    document.getElementById('ob-progress').style.width = [14,28,57,71,86,100][state.obStep-1] + '%';
+    document.getElementById('ob-back-btn').style.display = 'block';
+    if (state.obStep === 5) document.getElementById('ob-next-btn').textContent = 'Go to my dashboard';
   } else {
-    // Save profile to Supabase
-    const btn = document.getElementById('ob-next-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-    const { error } = await sbSaveProfile(state);
-    if (error) console.warn('Profile save error:', error.message);
-    if (btn) { btn.disabled = false; }
     goTo('dash');
   }
 }
-
 function obBack() {
   if (state.obStep > 1) {
     document.getElementById('ob-' + state.obStep).classList.remove('active');
     state.obStep--;
     document.getElementById('ob-' + state.obStep).classList.add('active');
-    document.getElementById('ob-progress').style.width = obProgress[state.obStep - 1] + '%';
+    document.getElementById('ob-progress').style.width = [14,28,57,71,86,100][state.obStep-1] + '%';
     document.getElementById('ob-next-btn').textContent = 'Continue';
     if (state.obStep === 1) document.getElementById('ob-back-btn').style.display = 'none';
   }
 }
 
-// ── CORRECTION ENGINE ─────────────────────────
-function correctCalories(rawCal, activityType) {
-  const fm = { beginner:1.08, casual:0.98, trained:0.78, athlete:0.68 };
-  const am = { cardio:1.0, strength:0.72, hiit:0.85, cycling:0.90, walk:0.95 };
-  return Math.round(rawCal * (fm[state.fitness]||0.85) * (am[activityType]||0.90));
+// ── AUTH ───────────────────────────────────────
+function showAuthError(msg) {
+  var el = document.getElementById('auth-error');
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 }
-function sleepConfidence(h) { return h >= 6 ? 0.82 : h >= 5 ? 0.75 : 0.65; }
-function hrConfidence() {
-  const p = {1:0,2:0,3:0.02,4:0.08,5:0.15,6:0.20};
-  return Math.round((0.95-(p[state.skin]||0))*100);
+function toggleAuthMode() {
+  var mode = document.getElementById('auth-mode');
+  var isSignIn = mode.dataset.mode === 'signin';
+  mode.dataset.mode = isSignIn ? 'signup' : 'signin';
+  document.getElementById('auth-title').textContent = isSignIn ? 'Create your account' : 'Welcome back';
+  var btn = document.getElementById('auth-submit-btn');
+  btn.textContent = isSignIn ? 'Create account' : 'Sign in';
+  btn.onclick = isSignIn ? handleSignUp : handleSignIn;
+  document.getElementById('auth-toggle').innerHTML = isSignIn
+    ? 'Already have an account? <a href="#" onclick="toggleAuthMode()">Sign in</a>'
+    : 'New to VITAL? <a href="#" onclick="toggleAuthMode()">Create account</a>';
+  showAuthError('');
 }
-function getMetrics() {
-  const rawCal=487, correctedCal=correctCalories(rawCal,'cardio');
-  const sleepH=5.4, sleepConf=sleepConfidence(sleepH), hrConf=hrConfidence();
-  return { rawCal, correctedCal, sleepH, sleepConf, hrConf,
-    calConf: 0.68, rhr: state.rhr+8,
-    recovery: (state.hrv<40||sleepH<5.5) ? 'critical' : 'low',
-    coachInsight: '' };
+async function handleSignIn() {
+  var email = document.getElementById('auth-email').value.trim();
+  var pass  = document.getElementById('auth-password').value;
+  if (!email || !pass) { showAuthError('Please enter your email and password.'); return; }
+  var btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    if (window._sb) {
+      var res = await window._sb.auth.signInWithPassword({email:email, password:pass});
+      if (res.error) { showAuthError(res.error.message); btn.disabled=false; btn.textContent='Sign in'; return; }
+      var prof = await window._sb.from('user_profiles').select('*').single();
+      if (prof.data && prof.data.onboarding_complete) { goTo('dash'); return; }
+    }
+  } catch(e) { console.warn('Auth error:', e); }
+  btn.disabled = false; btn.textContent = 'Sign in';
+  goTo('onboard');
+}
+async function handleSignUp() {
+  var email = document.getElementById('auth-email').value.trim();
+  var pass  = document.getElementById('auth-password').value;
+  if (!email || !pass) { showAuthError('Please enter your email and password.'); return; }
+  if (pass.length < 6)  { showAuthError('Password must be at least 6 characters.'); return; }
+  var btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  try {
+    if (window._sb) {
+      var res = await window._sb.auth.signUp({email:email, password:pass});
+      if (res.error) { showAuthError(res.error.message); btn.disabled=false; btn.textContent='Create account'; return; }
+    }
+  } catch(e) { console.warn('Signup error:', e); }
+  btn.disabled = false; btn.textContent = 'Create account';
+  goTo('onboard');
 }
 
-// ── DASHBOARD ─────────────────────────────────
-async function buildDash() {
-  const m = getMetrics();
-  const bannerTexts = {
-    motivated: `HRV is down 18% and sleep was short at ${m.sleepH}h. Save the hard session — recovery data says Thursday is your window.`,
-    neutral:   `Your recovery signals are below baseline today. HRV down, sleep short. An easy session or rest would serve you better than pushing hard.`,
-    gentle:    `Your body is asking for rest today — and that's completely okay. Sleep was shorter than your usual pattern and your HRV is showing it.`,
-    mh:        `You had a shorter sleep night and your body is recovering. Today looks like a good day for something gentle.`
+// ── CORRECTION ENGINE ──────────────────────────
+function correctCal(raw, activity) {
+  var fm = {beginner:1.08, casual:0.98, trained:0.78, athlete:0.68};
+  var am = {cardio:1.0, strength:0.72, hiit:0.85, cycling:0.90, walk:0.95};
+  return Math.round(raw * (fm[state.fitness]||0.85) * (am[activity]||0.90));
+}
+function sleepConf(h) { return h>=6 ? 0.82 : h>=5 ? 0.75 : 0.65; }
+function hrConf()     { var p={1:0,2:0,3:0.02,4:0.08,5:0.15,6:0.20}; return Math.round((0.95-(p[state.skin]||0))*100); }
+
+// ── DASHBOARD ──────────────────────────────────
+function buildDash() {
+  var rawCal = 487;
+  var corrCal = correctCal(rawCal, 'cardio');
+  var sleepH  = 5.4;
+  var sConf   = sleepConf(sleepH);
+  var hConf   = hrConf();
+  var rhr     = state.rhr + 8;
+
+  var banners = {
+    motivated: 'HRV is down 18% and sleep was short at ' + sleepH + 'h. Save the hard session — recovery data says Thursday is your window.',
+    neutral:   'Your recovery signals are below baseline today. HRV down, sleep short. An easy session or rest would serve you better than pushing hard.',
+    gentle:    'Your body is asking for rest today. Sleep was shorter than your usual pattern and your HRV is showing it.',
+    mh:        'You had a shorter sleep night and your body is recovering. Today looks like a good day for something gentle.'
   };
-  document.getElementById('coach-banner-text').textContent = bannerTexts[state.mh]||bannerTexts.neutral;
+  var el = document.getElementById('coach-banner-text');
+  if (el) el.textContent = banners[state.mh] || banners.neutral;
 
-  const metrics = [
-    { val:`${m.correctedCal}`, lbl:'cal burned (corrected)', delta:`was ${m.rawCal} raw`, deltaClass:'delta-good', conf:'68% conf' },
-    { val:`${m.sleepH}h`,      lbl:'sleep duration',         delta:'−22 min vs avg',      deltaClass:'delta-warn', conf:`${Math.round(m.sleepConf*100)}% conf` },
-    { val:`${m.rhr}`,          lbl:'resting HR (bpm)',        delta:`+8 vs baseline`,      deltaClass:'delta-bad',  conf:`${m.hrConf}% conf` },
-  ];
-  document.getElementById('metric-grid').innerHTML = metrics.map(m=>`
-    <div class="metric-card">
-      <div class="metric-val">${m.val}</div><div class="metric-lbl">${m.lbl}</div>
-      <div class="metric-delta ${m.deltaClass}">${m.delta}</div>
-      <div class="metric-conf">${m.conf}</div>
-    </div>`).join('');
+  var mg = document.getElementById('metric-grid');
+  if (mg) mg.innerHTML =
+    '<div class="metric-card"><div class="metric-val">' + corrCal + '</div><div class="metric-lbl">cal burned (corrected)</div><div class="metric-delta delta-good">was ' + rawCal + ' raw</div><div class="metric-conf">68% conf</div></div>' +
+    '<div class="metric-card"><div class="metric-val">' + sleepH + 'h</div><div class="metric-lbl">sleep duration</div><div class="metric-delta delta-warn">-22 min vs avg</div><div class="metric-conf">' + Math.round(sConf*100) + '% conf</div></div>' +
+    '<div class="metric-card"><div class="metric-val">' + rhr + '</div><div class="metric-lbl">resting HR (bpm)</div><div class="metric-delta delta-bad">+8 vs baseline</div><div class="metric-conf">' + hConf + '% conf</div></div>';
 
-  const insights = [
-    { title:'Calorie correction applied',  sub:`Apple Watch reported ${m.rawCal} cal. Corrected to ${m.correctedCal} based on your fitness level. Don't eat back the difference.`, dot:'var(--teal-400)', conf:'High',  confClass:'conf-high' },
-    { title:'Sleep trend: 7-day decline',  sub:'Duration is down 22 min/night. Stage data unreliable (±40%) — duration trend is the real signal.',                                dot:'var(--amber-400)',conf:'Trend', confClass:'conf-med'  },
-    { title:'Elevated resting HR — day 3', sub:`RHR has been ${m.rhr-2}–${m.rhr} bpm above your baseline for 3 consecutive days. Worth monitoring.`,                             dot:'var(--coral-400)',conf:'Watch', confClass:'conf-low'  },
-  ];
-  document.getElementById('insight-list').innerHTML = insights.map(i=>`
-    <div class="insight-item">
-      <div class="insight-dot" style="background:${i.dot}"></div>
-      <div style="flex:1"><div class="insight-title">${i.title}</div><div class="insight-sub">${i.sub}</div></div>
-      <div class="conf-badge ${i.confClass}">${i.conf}</div>
-    </div>`).join('');
-
-  // Save to Supabase
-  m.coachInsight = bannerTexts[state.mh]||bannerTexts.neutral;
-  await sbSaveDailySummary(m);
+  var il = document.getElementById('insight-list');
+  if (il) il.innerHTML =
+    '<div class="insight-item"><div class="insight-dot" style="background:var(--teal-400)"></div><div style="flex:1"><div class="insight-title">Calorie correction applied</div><div class="insight-sub">Apple Watch reported ' + rawCal + ' cal. Corrected to ' + corrCal + ' based on your fitness level.</div></div><div class="conf-badge conf-high">High</div></div>' +
+    '<div class="insight-item"><div class="insight-dot" style="background:var(--amber-400)"></div><div style="flex:1"><div class="insight-title">Sleep trend: 7-day decline</div><div class="insight-sub">Duration is down 22 min/night. Stage data unreliable — duration trend is the real signal.</div></div><div class="conf-badge conf-med">Trend</div></div>' +
+    '<div class="insight-item"><div class="insight-dot" style="background:var(--coral-400)"></div><div style="flex:1"><div class="insight-title">Elevated resting HR</div><div class="insight-sub">RHR has been above baseline for 3 days. Worth monitoring.</div></div><div class="conf-badge conf-low">Watch</div></div>';
 }
 
-// ── COACH CHAT ────────────────────────────────
-let chatHistory = [];
-let apiKeySet   = false;
-
-function saveKey() {
-  const key = document.getElementById('api-key-input').value.trim();
-  if (!key.startsWith('sk-')) {
-    document.getElementById('api-warning').textContent = 'Paste a valid Anthropic API key (starts with sk-ant-)';
-    return;
-  }
-  state.apiKey = key;
-  apiKeySet    = true;
-  document.getElementById('api-key-row').style.display   = 'none';
-  document.getElementById('api-warning').textContent      = '';
-  document.getElementById('coach-status').textContent     = 'Connected · reading your data';
-}
+// ── COACH CHAT ─────────────────────────────────
+var chatHistory = [];
+var coachReady  = false;
+var apiKeySet   = false;
 
 function buildSystemPrompt() {
-  const m = getMetrics();
-  return `You are VITAL Coach, an AI health and fitness guide.
-USER PROFILE: fitness=${state.fitness}, goal=${state.goal}, age=${state.age}, weight=${state.weight}kg, coaching_mode=${state.mh}
-TODAY'S CORRECTED METRICS: Calories ${m.correctedCal} kcal (raw ${m.rawCal}), Sleep ${m.sleepH}h, RHR ${m.rhr}bpm (baseline ${state.rhr}), HRV ${state.hrv-10}ms (baseline ${state.hrv}), HR sensor conf ${m.hrConf}%, Recovery: LOW
-RULES: Lead with the most actionable insight. Under 120 words unless asked for detail. Never diagnose. When recovery is LOW never recommend hard training. Always use corrected calorie figure. Speak like a knowledgeable friend.${state.mh==='mh'||state.mh==='gentle'?' WELLBEING MODE: no score language, trends only.':''}`;
+  return 'You are VITAL Coach, an AI fitness guide. User profile: fitness=' + state.fitness + ', goal=' + state.goal + ', age=' + state.age + ', weight=' + state.weight + 'kg, coaching_mode=' + state.mh + '. Today: calories corrected from 487 to ' + correctCal(487,'cardio') + ', sleep 5.4h, resting HR ' + (state.rhr+8) + 'bpm (baseline ' + state.rhr + '), recovery LOW. Rules: lead with the most actionable insight, under 120 words unless asked, never recommend hard training when recovery is LOW, speak like a knowledgeable friend.';
 }
 
-async function initCoach() {
-  if (chatHistory.length > 0) return;
-  // Start session in Supabase
-  const m = getMetrics();
-  const ctx = { fitness:state.fitness, goal:state.goal, mh:state.mh, metrics:m, date:new Date().toISOString() };
-  const { data } = await sbStartSession(ctx);
-  state.sessionId = data?.id || 'demo-session';
-
-  const openings = {
-    motivated: `I've pulled your data. Calorie correction is live — your ${m.rawCal}-cal burn is actually closer to ${m.correctedCal} given your fitness level. Recovery is low: HRV down, HR elevated. What are you thinking for training?`,
-    neutral:   `Your data is loaded. Calorie correction: ${m.rawCal} → ${m.correctedCal} cal. Recovery signals are running low — HRV down, sleep short, HR elevated. What would you like to dig into?`,
-    gentle:    `Good to see you. Recovery is on the lower side today — completely normal after busy days. No pressure. What's on your mind?`,
-    mh:        `Hello. Your data is all synced. Today seems like a quieter kind of day. What can I help you with?`
+function initCoach() {
+  if (coachReady) return;
+  coachReady = true;
+  var openings = {
+    motivated: 'Data loaded. Calorie correction active: 487 cal from your device is actually ' + correctCal(487,'cardio') + ' given your fitness level. Recovery is low today — HRV down, HR elevated. What are you thinking for training?',
+    neutral:   'Your data is loaded. Calorie correction: 487 to ' + correctCal(487,'cardio') + ' cal. Recovery signals are running low today. What would you like to dig into?',
+    gentle:    'Good to see you. Recovery is on the lower side today — completely normal after busy days. What is on your mind?',
+    mh:        'Hello. Your data is all synced. Today seems like a quieter day. What can I help you with?'
   };
-  const opening = openings[state.mh] || openings.neutral;
-  addMessage('ai', opening);
-  await sbSaveMessage(state.sessionId, 'assistant', opening);
-  document.getElementById('coach-status').textContent = 'Connected · data loaded';
+  addMsg('ai', openings[state.mh] || openings.neutral);
+  document.getElementById('coach-status').textContent = 'Connected - data loaded';
 }
 
-function addMessage(role, content) {
-  const body = document.getElementById('chat-body');
-  const now  = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-  const div  = document.createElement('div');
-  div.className = `chat-msg ${role}`;
-  div.innerHTML = `<div class="chat-bubble">${content.replace(/
-/g,'<br>')}</div><div class="chat-time">${now}</div>`;
-  body.appendChild(div);
+function addMsg(role, text) {
+  var body = document.getElementById('chat-body');
+  var now  = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  var wrap = document.createElement('div');
+  wrap.className = 'chat-msg ' + role;
+  var bubble = document.createElement('div');
+  bubble.className = 'chat-bubble';
+  bubble.textContent = text;
+  var time = document.createElement('div');
+  time.className = 'chat-time';
+  time.textContent = now;
+  wrap.appendChild(bubble);
+  wrap.appendChild(time);
+  body.appendChild(wrap);
   body.scrollTop = body.scrollHeight;
-  chatHistory.push({ role: role==='ai'?'assistant':'user', content });
+  chatHistory.push({role: role==='ai'?'assistant':'user', content: text});
 }
 
 function showTyping() {
-  const body = document.getElementById('chat-body');
-  const div  = document.createElement('div');
-  div.className = 'chat-msg ai'; div.id = 'typing-indicator';
-  div.innerHTML  = '<div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
-  body.appendChild(div); body.scrollTop = body.scrollHeight;
+  var body = document.getElementById('chat-body');
+  var d = document.createElement('div');
+  d.className = 'chat-msg ai'; d.id = 'typing-ind';
+  var t = document.createElement('div');
+  t.className = 'typing';
+  t.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  d.appendChild(t);
+  body.appendChild(d);
+  body.scrollTop = body.scrollHeight;
 }
-function removeTyping() { const t=document.getElementById('typing-indicator'); if(t)t.remove(); }
+function removeTyping() { var t=document.getElementById('typing-ind'); if(t) t.remove(); }
+
+function saveKey() {
+  var key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-')) {
+    document.getElementById('api-warning').textContent = 'Paste a valid Anthropic API key starting with sk-';
+    return;
+  }
+  state.apiKey = key;
+  apiKeySet = true;
+  document.getElementById('api-key-row').style.display = 'none';
+  document.getElementById('api-warning').textContent = '';
+  document.getElementById('coach-status').textContent = 'Connected - live';
+}
 
 async function sendMessage() {
-  const input = document.getElementById('chat-input');
-  const text  = input.value.trim();
+  var input = document.getElementById('chat-input');
+  var text  = input.value.trim();
   if (!text) return;
-  input.value = ''; input.style.height = 'auto';
+  input.value = '';
+  input.style.height = 'auto';
 
   if (!apiKeySet) {
     document.getElementById('api-warning').textContent = 'Add your Anthropic API key above to activate the coach.';
-    addMessage('user', text);
-    setTimeout(()=>addMessage('ai',"I'd love to help — paste your Anthropic API key above and hit Connect."),500);
+    addMsg('user', text);
+    setTimeout(function() { addMsg('ai', 'Paste your Anthropic API key above and hit Connect to activate the coach.'); }, 400);
     return;
   }
 
-  addMessage('user', text);
-  await sbSaveMessage(state.sessionId, 'user', text);
+  addMsg('user', text);
   document.getElementById('send-btn').disabled = true;
   document.getElementById('coach-status').textContent = 'Thinking...';
   showTyping();
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'x-api-key':state.apiKey,
-        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
-        model:'claude-sonnet-4-6', max_tokens:400,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
         system: buildSystemPrompt(),
-        messages: chatHistory.filter(m=>m.role!=='system')
+        messages: chatHistory.filter(function(m) { return m.role !== 'system'; })
       })
     });
-    const data = await resp.json();
+    var data = await resp.json();
     removeTyping();
-    if (data.content?.[0]) {
-      const reply = data.content[0].text;
-      addMessage('ai', reply);
-      await sbSaveMessage(state.sessionId, 'assistant', reply);
-      // Track token usage
-      state.totalInputTokens  += data.usage?.input_tokens  || 0;
-      state.totalOutputTokens += data.usage?.output_tokens || 0;
-      document.getElementById('coach-status').textContent = 'Connected · data loaded';
+    if (data.content && data.content[0]) {
+      addMsg('ai', data.content[0].text);
+      document.getElementById('coach-status').textContent = 'Connected - data loaded';
     } else {
-      addMessage('ai','Something went wrong. Check your API key and try again.');
+      addMsg('ai', 'Something went wrong. Check your API key and try again.');
     }
   } catch(e) {
     removeTyping();
-    addMessage('ai','Connection error — check your API key and internet connection.');
-    document.getElementById('coach-status').textContent = 'Connection error';
+    addMsg('ai', 'Connection error. Check your API key and internet connection.');
+    document.getElementById('coach-status').textContent = 'Error';
   }
   document.getElementById('send-btn').disabled = false;
 }
 
-function sendQuick(text) { document.getElementById('chat-input').value=text; sendMessage(); }
-function inputKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
-function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendMessage();
+}
+function inputKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height='auto'; el.style.height = Math.min(el.scrollHeight,120)+'px'; }
 
-// ── INIT ──────────────────────────────────────
-(async () => {
-  try {
-    await initSupabase();
-    // Check if already logged in
-    if (sb) {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session?.user) {
-        state.currentUser = session.user;
-        const { data: profile } = await sbGetProfile();
-        if (profile?.onboarding_complete) {
-          state.fitness = profile.fitness_level  || state.fitness;
-          state.goal    = profile.primary_goal   || state.goal;
-          state.mh      = profile.coaching_mode  || state.mh;
-          state.skin    = profile.skin_tone_fitzpatrick || state.skin;
-          state.rhr     = profile.rhr_baseline   || state.rhr;
-          state.hrv     = profile.hrv_baseline   || state.hrv;
-          goTo('dash');
-          return;
-        }
-      }
-    }
-  } catch(e) {
-    console.warn('Supabase init failed, running in demo mode:', e.message);
-  }
-  // Show splash — app works in demo mode even if Supabase fails
-  goTo('splash');
-})();
-
+// ── LOAD SUPABASE AFTER PAGE READY ─────────────
+window.addEventListener('load', function() {
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  s.onload = function() {
+    try {
+      window._sb = window.supabase.createClient(
+        'https://hvglyberbehhlxmcdonj.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z2x5YmVyYmVoaGx4bWNkb25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODA0NjksImV4cCI6MjA5ODI1NjQ2OX0.ulcvX_cOtJVLLUU7qqI1iJRzwW0FwzZyaHA_mkFXK6Y'
+      );
+      console.log('Supabase ready');
+    } catch(e) { console.warn('Supabase unavailable:', e.message); }
+  };
+  document.body.appendChild(s);
+});
 </script>
-
-
 </body>
 </html>
