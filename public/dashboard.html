@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VITAL — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --t50:#E1F5EE;--t100:#9FE1CB;--t400:#1D9E75;--t600:#0F6E56;--t900:#04342C;
+  --p50:#EEEDFE;--p400:#7F77DD;--p600:#534AB7;
+  --a50:#FAEEDA;--a400:#EF9F27;--a600:#854F0B;
+  --c50:#FAECE7;--c400:#D85A30;--c600:#993C1D;
+  --g50:#F7F6F2;--g100:#EEECEA;--g200:#D3D1C7;--g400:#888780;--g600:#5F5E5A;--g800:#2C2C2A;--g900:#111210;
+  --bg:#F4F3EF;--surf:#FFFFFF;--bdr:rgba(44,44,42,0.10);
+  --text:#1A1A18;--text2:#5F5E5A;--text3:#9A9994;
+  --r:10px;--rlg:14px;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column}
+
+/* ── SIGNAL STRIP — the signature element ── */
+.signal-strip{background:var(--g900);padding:.75rem 1.25rem .6rem;position:sticky;top:0;z-index:20}
+.strip-label{font-size:10px;font-weight:500;color:var(--g400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.5rem;font-family:var(--mono)}
+.strip-signals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.sig{display:flex;flex-direction:column;gap:4px}
+.sig-name{font-size:10px;color:var(--g400);font-family:var(--mono)}
+.sig-track{height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.sig-fill{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.sig-val{font-size:11px;font-weight:500;font-family:var(--mono);color:#fff}
+.sig-conf{font-size:9px;font-family:var(--mono);margin-top:1px}
+
+/* ── NAV ── */
+.nav{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 1.25rem;height:48px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{font-size:16px;font-weight:600;letter-spacing:-.5px;color:var(--t600)}
+.nav-brand em{color:var(--g400);font-style:normal;font-weight:300}
+.nav-tabs{display:flex;gap:0}
+.nav-tab{font-size:13px;padding:.5rem .9rem;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;transition:all .15s;font-weight:500}
+.nav-tab.on{color:var(--t600);border-bottom-color:var(--t400)}
+.nav-actions{display:flex;align-items:center;gap:8px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--t400);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-lbl{font-size:11px;color:var(--text3);font-family:var(--mono)}
+
+/* ── LAYOUT ── */
+.page{display:none;flex:1}
+.page.on{display:block}
+.body-wrap{max-width:760px;margin:0 auto;padding:1.25rem}
+
+/* ── TODAY HEADER ── */
+.today-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.1rem;gap:12px}
+.today-date{font-size:13px;color:var(--text3);font-family:var(--mono)}
+.today-title{font-size:22px;font-weight:600;letter-spacing:-.5px;color:var(--text);line-height:1.2}
+.recovery-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.04em}
+.rec-low{background:var(--c50);color:var(--c600)}
+.rec-mid{background:var(--a50);color:var(--a600)}
+.rec-high{background:var(--t50);color:var(--t600)}
+
+/* ── COACH CARD ── */
+.coach-card{background:var(--g900);border-radius:var(--rlg);padding:1.1rem 1.25rem;margin-bottom:1rem;cursor:pointer;transition:opacity .15s;display:flex;gap:12px;align-items:flex-start}
+.coach-card:hover{opacity:.93}
+.coach-avatar{width:34px;height:34px;border-radius:50%;background:var(--t400);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px}
+.coach-body{flex:1;min-width:0}
+.coach-eyebrow{font-size:10px;font-weight:500;color:var(--t400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;font-family:var(--mono)}
+.coach-text{font-size:13px;line-height:1.6;color:rgba(255,255,255,.88)}
+.coach-cta{font-size:12px;font-weight:500;color:var(--t400);margin-top:6px;display:flex;align-items:center;gap:4px}
+
+/* ── METRIC CARDS ── */
+.metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.mcard{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:.95rem 1rem;position:relative;overflow:hidden}
+.mcard-accent{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--rlg) var(--rlg) 0 0}
+.mcard-label{font-size:11px;color:var(--text3);margin-bottom:.4rem;font-family:var(--mono)}
+.mcard-val{font-size:24px;font-weight:600;letter-spacing:-1px;color:var(--text);line-height:1;margin-bottom:.3rem;font-family:var(--mono)}
+.mcard-unit{font-size:13px;font-weight:400;color:var(--text3);letter-spacing:0}
+.mcard-delta{font-size:11px;font-weight:500;margin-bottom:.2rem}
+.mcard-conf{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.delta-good{color:var(--t600)}
+.delta-warn{color:var(--a600)}
+.delta-bad{color:var(--c600)}
+.correction-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;background:var(--t50);color:var(--t600);font-family:var(--mono);margin-top:3px}
+
+/* ── CHARTS ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.chart-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:1rem}
+.chart-card.wide{grid-column:span 2}
+.chart-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.85rem}
+.chart-title{font-size:13px;font-weight:600;color:var(--text)}
+.chart-sub{font-size:11px;color:var(--text3);margin-top:1px;font-family:var(--mono)}
+.chart-badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px}
+.cb-teal{background:var(--t50);color:var(--t600)}
+.cb-amber{background:var(--a50);color:var(--a600)}
+.cb-purple{background:var(--p50);color:var(--p600)}
+.chart-wrap{position:relative;height:140px}
+.chart-wrap.tall{height:180px}
+
+/* ── INSIGHT LIST ── */
+.insight-section-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem;font-family:var(--mono)}
+.ilist{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
+.iitem{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:.85rem 1rem;display:flex;gap:10px;align-items:flex-start}
+.iitem-left{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;padding-top:2px}
+.iitem-dot{width:8px;height:8px;border-radius:50%}
+.iitem-conf-line{width:1px;flex:1;min-height:20px}
+.iitem-body{flex:1;min-width:0}
+.iitem-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.iitem-text{font-size:12px;color:var(--text2);line-height:1.55}
+.iitem-meta{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.conf-pill{font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;font-family:var(--mono)}
+.cp-high{background:var(--t50);color:var(--t600)}
+.cp-med{background:var(--a50);color:var(--a600)}
+.cp-low{background:var(--c50);color:var(--c600)}
+.source-pill{font-size:10px;color:var(--text3);font-family:var(--mono)}
+
+/* ── TRENDS PAGE ── */
+.trend-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:1rem}
+.trend-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:1rem}
+.trend-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.trend-title{font-size:13px;font-weight:600;color:var(--text)}
+.trend-stat{text-align:right}
+.trend-big{font-size:20px;font-weight:600;font-family:var(--mono);letter-spacing:-.5px;color:var(--text)}
+.trend-dir{font-size:11px;font-family:var(--mono)}
+.trend-chart-wrap{position:relative;height:120px}
+.stat-row-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--bdr)}
+.stat-mini{text-align:center}
+.stat-mini-val{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text)}
+.stat-mini-lbl{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:1px}
+
+/* ── PROFILE PAGE ── */
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.profile-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rlg);padding:1rem}
+.profile-label{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem;font-family:var(--mono)}
+.profile-row{display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--bdr);font-size:13px}
+.profile-row:last-child{border-bottom:none}
+.profile-key{color:var(--text2)}
+.profile-val{font-weight:500;color:var(--text);font-family:var(--mono)}
+.conf-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:.6rem}
+.conf-bar-lbl{font-size:12px;color:var(--text2);flex:1}
+.conf-bar-track{flex:1;height:6px;background:var(--g100);border-radius:3px;overflow:hidden}
+.conf-bar-fill{height:100%;border-radius:3px}
+.conf-bar-val{font-size:11px;font-family:var(--mono);font-weight:500;width:32px;text-align:right;color:var(--text2)}
+.source-card{display:flex;align-items:center;gap:10px;padding:.6rem .85rem;background:var(--g50);border-radius:var(--r);margin-bottom:6px}
+.source-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.source-name{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.source-status{font-size:11px;font-family:var(--mono)}
+.st-live{color:var(--t600)}
+.st-pend{color:var(--a600)}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{background:var(--surf);border-top:1px solid var(--bdr);display:flex;position:sticky;bottom:0;padding:.4rem 0 .6rem}
+.bnav{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:.3rem 0;font-size:10px;color:var(--text3);transition:color .15s;font-weight:500}
+.bnav.on{color:var(--t600)}
+.bnav-icon{font-size:19px;line-height:1}
+
+/* ── COACH CHAT (overlay) ── */
+.coach-overlay{position:fixed;inset:0;background:var(--surf);z-index:100;display:none;flex-direction:column}
+.coach-overlay.open{display:flex}
+.co-header{background:var(--g900);padding:.85rem 1.25rem;display:flex;align-items:center;gap:10px}
+.co-back{background:none;border:none;color:var(--g400);font-size:20px;cursor:pointer;font-family:var(--font);padding:2px 6px;line-height:1}
+.co-back:hover{color:#fff}
+.co-title{font-size:14px;font-weight:600;color:#fff;flex:1}
+.co-status{font-size:11px;color:var(--t400);font-family:var(--mono)}
+.co-body{flex:1;overflow-y:auto;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.co-msg{display:flex;flex-direction:column;max-width:86%}
+.co-msg.ai{align-self:flex-start}
+.co-msg.user{align-self:flex-end}
+.co-bubble{padding:.65rem .9rem;border-radius:14px;font-size:13px;line-height:1.6}
+.co-msg.ai .co-bubble{background:var(--surf);border:1px solid var(--bdr);color:var(--text);border-bottom-left-radius:3px}
+.co-msg.user .co-bubble{background:var(--t600);color:#fff;border-bottom-right-radius:3px}
+.co-time{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono);padding:0 3px}
+.co-msg.user .co-time{text-align:right}
+.typing{display:flex;gap:4px;align-items:center;padding:.65rem .9rem;background:var(--surf);border:1px solid var(--bdr);border-radius:14px;border-bottom-left-radius:3px;width:fit-content}
+.tdot{width:6px;height:6px;border-radius:50%;background:var(--g400);animation:tdot 1.2s infinite}
+.tdot:nth-child(2){animation-delay:.2s}
+.tdot:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+.co-footer{background:var(--surf);border-top:1px solid var(--bdr);padding:.75rem 1.25rem}
+.co-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.6rem}
+.co-chip{font-size:12px;padding:4px 10px;border-radius:20px;border:1px solid var(--bdr);background:var(--bg);cursor:pointer;color:var(--text2);transition:all .15s;font-family:var(--font);white-space:nowrap}
+.co-chip:hover{border-color:var(--t400);color:var(--t600)}
+.co-input-row{display:flex;gap:8px;align-items:flex-end}
+.co-input{flex:1;padding:.6rem .9rem;border-radius:22px;border:1px solid var(--bdr);background:var(--bg);font-size:14px;font-family:var(--font);color:var(--text);outline:none;resize:none;max-height:100px;line-height:1.4}
+.co-input:focus{border-color:var(--t400)}
+.co-send{width:36px;height:36px;border-radius:50%;background:var(--t600);border:none;cursor:pointer;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s;font-family:var(--font)}
+.co-send:hover{opacity:.85}
+.co-send:disabled{opacity:.35;cursor:default}
+.api-row{display:flex;gap:6px;margin-bottom:.6rem}
+.api-input{flex:1;padding:.5rem .75rem;border-radius:var(--r);border:1px solid var(--bdr);background:var(--g50);font-size:13px;font-family:var(--mono);color:var(--text);outline:none}
+.api-input:focus{border-color:var(--t400)}
+.api-connect-btn{padding:.5rem .9rem;border-radius:var(--r);background:var(--t600);color:#fff;border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font);white-space:nowrap}
+.api-warn{font-size:11px;color:var(--c600);margin-top:3px;font-family:var(--mono)}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<!-- SIGNAL STRIP -->
+<div class="signal-strip">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.5rem;">
+    <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjgwIDI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iNjgwIiBoZWlnaHQ9IjI4MCI+Cjx0aXRsZT5WSVRBTCBGaXRuZXNzIENvYWNoIGxvZ288L3RpdGxlPgo8ZGVzYz5WSVRBTCB3b3JkbWFyayBhbmQgRml0bmVzcyBDb2FjaCBzdWJ0aXRsZSBjb250YWluZWQgd2l0aGluIG92YWwsIFYtaGVhcnRiZWF0IGljb24gYXQgbGVmdCBlZGdlPC9kZXNjPgo8ZGVmcz4KICA8cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjRkZGRkZGIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNFQUYwRjgiLz4KICAgIDxzdG9wIG9mZnNldD0iODIlIiAgc3RvcC1jb2xvcj0iI0M4RDREQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOUVCMEI4IiBzdG9wLW9wYWNpdHk9IjAuNCIvPgogIDwvcmFkaWFsR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJ2ZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiM4RkEwQzAiLz4KICAgIDxzdG9wIG9mZnNldD0iMzAlIiAgc3RvcC1jb2xvcj0iIzRCNkZEOCIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NSUiICBzdG9wLWNvbG9yPSIjMjU0MEY4Ii8+CiAgICA8c3RvcCBvZmZzZXQ9Ijc4JSIgIHN0b3AtY29sb3I9IiM2RTVFRjQiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0M4QjBFMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJoZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMEFCQUZDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjMwJSIgIHN0b3AtY29sb3I9IiMxMDgwRkEiLz4KICAgIDxzdG9wIG9mZnNldD0iNjIlIiAgc3RvcC1jb2xvcj0iIzdCMUVGQyIvPgogICAgPHN0b3Agb2Zmc2V0PSI4NSUiICBzdG9wLWNvbG9yPSIjQUEyOEVDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNDMDY4RTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0idGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iI0RDQzhEQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxNSUiICBzdG9wLWNvbG9yPSIjQkFENEY0Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjM4JSIgIHN0b3AtY29sb3I9IiMyNTgxRTUiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzFGNjhEOCIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJzZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjNzhCOEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyQjdFRTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxjbGlwUGF0aCBpZD0ib2MiPgogICAgPGVsbGlwc2UgY3g9IjM0MCIgY3k9IjE0MCIgcng9IjMxOCIgcnk9IjEyOCIvPgogIDwvY2xpcFBhdGg+CjwvZGVmcz4KCjxyZWN0IHdpZHRoPSI2ODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjMDM0NDM2Ii8+CjxlbGxpcHNlIGN4PSIzNDAiIGN5PSIxNDAiIHJ4PSIzMTgiIHJ5PSIxMjgiIGZpbGw9InVybCgjb2cpIi8+Cgo8ZyBjbGlwLXBhdGg9InVybCgjb2MpIj4KICA8cG9seWdvbiBwb2ludHM9IjMwLDYwICA1NCw2MCAgMTA4LDIwMCAgODQsMjAwIiBmaWxsPSJ1cmwoI3ZnKSIvPgogIDxwb2x5Z29uIHBvaW50cz0iODQsMjAwICAxMDgsMjAwICAxNDYsMTA4ICAxMjIsMTA4IiBmaWxsPSJ1cmwoI3ZnKSIgb3BhY2l0eT0iMC44OCIvPgogIDxwb2x5Z29uIHBvaW50cz0iNDIsNjAgIDU0LDYwICAxMDgsMjAwICA5NiwyMDAiIGZpbGw9IiMwQTIwQzgiIG9wYWNpdHk9IjAuMTYiLz4KICA8cG9seWxpbmUKICAgIHBvaW50cz0iMzQsMTQyICA3MiwxNDIgIDg0LDE0MiAgOTYsODYgIDExMCwxOTYgIDEyMiwxMTQgIDEzNiwxNDIgIDE4MiwxNDIiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSJ1cmwoI2hnKSIKICAgIHN0cm9rZS13aWR0aD0iNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9Ijg2IiByPSI1IiAgZmlsbD0iI0Y4QTAzMCIgb3BhY2l0eT0iMC45NSIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iODYiIHI9IjEwIiBmaWxsPSIjRjhBMDMwIiBvcGFjaXR5PSIwLjIyIi8+CiAgPHRleHQKICAgIHg9IjE5NiIgeT0iMTY4IgogICAgZm9udC1mYW1pbHk9IidBcmlhbCBCbGFjaycsJ0ZyYW5rbGluIEdvdGhpYyBIZWF2eScsJ0ltcGFjdCcsc2Fucy1zZXJpZiIKICAgIGZvbnQtc2l6ZT0iMTA0IgogICAgZm9udC13ZWlnaHQ9IjkwMCIKICAgIGxldHRlci1zcGFjaW5nPSItMyIKICAgIGZpbGw9InVybCgjdGcpIgogID5WSVRBTDwvdGV4dD4KICA8dGV4dAogICAgeD0iMjAwIiB5PSIyMTUiCiAgICBmb250LWZhbWlseT0iJ0FyaWFsJywnSGVsdmV0aWNhIE5ldWUnLHNhbnMtc2VyaWYiCiAgICBmb250LXNpemU9IjMwIgogICAgZm9udC13ZWlnaHQ9IjQwMCIKICAgIGxldHRlci1zcGFjaW5nPSIzIgogICAgZmlsbD0idXJsKCNzZykiCiAgPkZJVE5FU1MgQ09BQ0g8L3RleHQ+CjwvZz4KCjwvc3ZnPgo=" alt="VITAL" style="height:20px;width:auto;display:block;" />
+    <span class="strip-label" style="margin-bottom:0">signal monitor · live</span>
+  </div>
+  <div class="strip-signals" id="signal-strip"></div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-brand" style="display:flex;align-items:center;">
+    <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjgwIDI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iNjgwIiBoZWlnaHQ9IjI4MCI+Cjx0aXRsZT5WSVRBTCBGaXRuZXNzIENvYWNoIGxvZ288L3RpdGxlPgo8ZGVzYz5WSVRBTCB3b3JkbWFyayBhbmQgRml0bmVzcyBDb2FjaCBzdWJ0aXRsZSBjb250YWluZWQgd2l0aGluIG92YWwsIFYtaGVhcnRiZWF0IGljb24gYXQgbGVmdCBlZGdlPC9kZXNjPgo8ZGVmcz4KICA8cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjRkZGRkZGIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNFQUYwRjgiLz4KICAgIDxzdG9wIG9mZnNldD0iODIlIiAgc3RvcC1jb2xvcj0iI0M4RDREQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOUVCMEI4IiBzdG9wLW9wYWNpdHk9IjAuNCIvPgogIDwvcmFkaWFsR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJ2ZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiM4RkEwQzAiLz4KICAgIDxzdG9wIG9mZnNldD0iMzAlIiAgc3RvcC1jb2xvcj0iIzRCNkZEOCIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NSUiICBzdG9wLWNvbG9yPSIjMjU0MEY4Ii8+CiAgICA8c3RvcCBvZmZzZXQ9Ijc4JSIgIHN0b3AtY29sb3I9IiM2RTVFRjQiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0M4QjBFMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJoZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMEFCQUZDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjMwJSIgIHN0b3AtY29sb3I9IiMxMDgwRkEiLz4KICAgIDxzdG9wIG9mZnNldD0iNjIlIiAgc3RvcC1jb2xvcj0iIzdCMUVGQyIvPgogICAgPHN0b3Agb2Zmc2V0PSI4NSUiICBzdG9wLWNvbG9yPSIjQUEyOEVDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNDMDY4RTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0idGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iI0RDQzhEQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxNSUiICBzdG9wLWNvbG9yPSIjQkFENEY0Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjM4JSIgIHN0b3AtY29sb3I9IiMyNTgxRTUiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzFGNjhEOCIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJzZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjNzhCOEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyQjdFRTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxjbGlwUGF0aCBpZD0ib2MiPgogICAgPGVsbGlwc2UgY3g9IjM0MCIgY3k9IjE0MCIgcng9IjMxOCIgcnk9IjEyOCIvPgogIDwvY2xpcFBhdGg+CjwvZGVmcz4KCjxyZWN0IHdpZHRoPSI2ODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjMDM0NDM2Ii8+CjxlbGxpcHNlIGN4PSIzNDAiIGN5PSIxNDAiIHJ4PSIzMTgiIHJ5PSIxMjgiIGZpbGw9InVybCgjb2cpIi8+Cgo8ZyBjbGlwLXBhdGg9InVybCgjb2MpIj4KICA8cG9seWdvbiBwb2ludHM9IjMwLDYwICA1NCw2MCAgMTA4LDIwMCAgODQsMjAwIiBmaWxsPSJ1cmwoI3ZnKSIvPgogIDxwb2x5Z29uIHBvaW50cz0iODQsMjAwICAxMDgsMjAwICAxNDYsMTA4ICAxMjIsMTA4IiBmaWxsPSJ1cmwoI3ZnKSIgb3BhY2l0eT0iMC44OCIvPgogIDxwb2x5Z29uIHBvaW50cz0iNDIsNjAgIDU0LDYwICAxMDgsMjAwICA5NiwyMDAiIGZpbGw9IiMwQTIwQzgiIG9wYWNpdHk9IjAuMTYiLz4KICA8cG9seWxpbmUKICAgIHBvaW50cz0iMzQsMTQyICA3MiwxNDIgIDg0LDE0MiAgOTYsODYgIDExMCwxOTYgIDEyMiwxMTQgIDEzNiwxNDIgIDE4MiwxNDIiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSJ1cmwoI2hnKSIKICAgIHN0cm9rZS13aWR0aD0iNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9Ijg2IiByPSI1IiAgZmlsbD0iI0Y4QTAzMCIgb3BhY2l0eT0iMC45NSIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iODYiIHI9IjEwIiBmaWxsPSIjRjhBMDMwIiBvcGFjaXR5PSIwLjIyIi8+CiAgPHRleHQKICAgIHg9IjE5NiIgeT0iMTY4IgogICAgZm9udC1mYW1pbHk9IidBcmlhbCBCbGFjaycsJ0ZyYW5rbGluIEdvdGhpYyBIZWF2eScsJ0ltcGFjdCcsc2Fucy1zZXJpZiIKICAgIGZvbnQtc2l6ZT0iMTA0IgogICAgZm9udC13ZWlnaHQ9IjkwMCIKICAgIGxldHRlci1zcGFjaW5nPSItMyIKICAgIGZpbGw9InVybCgjdGcpIgogID5WSVRBTDwvdGV4dD4KICA8dGV4dAogICAgeD0iMjAwIiB5PSIyMTUiCiAgICBmb250LWZhbWlseT0iJ0FyaWFsJywnSGVsdmV0aWNhIE5ldWUnLHNhbnMtc2VyaWYiCiAgICBmb250LXNpemU9IjMwIgogICAgZm9udC13ZWlnaHQ9IjQwMCIKICAgIGxldHRlci1zcGFjaW5nPSIzIgogICAgZmlsbD0idXJsKCNzZykiCiAgPkZJVE5FU1MgQ09BQ0g8L3RleHQ+CjwvZz4KCjwvc3ZnPgo=" alt="VITAL" style="height:20px;width:auto;display:block;" />
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab on" onclick="showPage('today')">Today</div>
+    <div class="nav-tab" onclick="showPage('trends')">Trends</div>
+    <div class="nav-tab" onclick="showPage('profile')">Profile</div>
+  </div>
+  <div class="nav-actions">
+    <div class="sync-dot"></div>
+    <div class="sync-lbl">2 synced</div>
+  </div>
+</div>
+
+<!-- TODAY PAGE -->
+<div class="page on" id="page-today">
+<div class="body-wrap">
+  <div class="today-header">
+    <div>
+      <div class="today-date" id="today-date"></div>
+      <div class="today-title" id="today-title">Loading...</div>
+    </div>
+    <div class="recovery-badge rec-low" id="recovery-badge">Low recovery</div>
+  </div>
+  <div class="coach-card" onclick="openCoach()">
+    <div class="coach-avatar">⚡</div>
+    <div class="coach-body">
+      <div class="coach-eyebrow">VITAL COACH · NOW</div>
+      <div class="coach-text" id="coach-insight-text">Analysing your signals...</div>
+      <div class="coach-cta">Ask a follow-up <span>→</span></div>
+    </div>
+  </div>
+  <div class="metric-row" id="metric-row"></div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div><div class="chart-title">HRV — 14 days</div><div class="chart-sub">vs your baseline</div></div>
+        <span class="chart-badge cb-amber">Declining</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-hrv"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div><div class="chart-title">Resting HR — 14 days</div><div class="chart-sub">vs your baseline</div></div>
+        <span class="chart-badge cb-amber">Elevated</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-rhr"></canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <div><div class="chart-title">Sleep duration — 14 days</div><div class="chart-sub">duration reliable · stages suppressed</div></div>
+        <span class="chart-badge cb-teal">Tracking</span>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chart-sleep"></canvas></div>
+    </div>
+  </div>
+  <div class="insight-section-label">Insights · today</div>
+  <div class="ilist" id="insight-list"></div>
+</div>
+</div>
+
+<!-- TRENDS PAGE -->
+<div class="page" id="page-trends">
+<div class="body-wrap">
+  <div class="trend-grid" id="trend-grid"></div>
+</div>
+</div>
+
+<!-- PROFILE PAGE -->
+<div class="page" id="page-profile">
+<div class="body-wrap">
+  <div class="profile-grid">
+    <div class="profile-card">
+      <div class="profile-label">Your baseline</div>
+      <div class="profile-row"><span class="profile-key">Fitness level</span><span class="profile-val" id="pf-fitness">—</span></div>
+      <div class="profile-row"><span class="profile-key">Goal</span><span class="profile-val" id="pf-goal">—</span></div>
+      <div class="profile-row"><span class="profile-key">RHR baseline</span><span class="profile-val" id="pf-rhr">—</span></div>
+      <div class="profile-row"><span class="profile-key">HRV baseline</span><span class="profile-val" id="pf-hrv">—</span></div>
+      <div class="profile-row"><span class="profile-key">Sleep avg</span><span class="profile-val">6h 41m</span></div>
+      <div class="profile-row"><span class="profile-key">Chronotype</span><span class="profile-val">Late (11pm–6:30am)</span></div>
+      <div class="profile-row"><span class="profile-key">Baseline days</span><span class="profile-val">62 days</span></div>
+    </div>
+    <div class="profile-card">
+      <div class="profile-label">Metric confidence</div>
+      <div id="conf-bars"></div>
+    </div>
+  </div>
+  <div class="profile-card" style="margin-bottom:10px">
+    <div class="profile-label">Connected sources</div>
+    <div id="sources-list"></div>
+  </div>
+  <div class="profile-card">
+    <div class="profile-label">Correction engine · this session</div>
+    <div id="engine-log" style="font-size:12px;font-family:var(--mono);color:var(--text2);line-height:1.8"></div>
+  </div>
+</div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="bnav on" onclick="showPage('today')"><div class="bnav-icon">⌂</div>Today</div>
+  <div class="bnav" onclick="showPage('trends')"><div class="bnav-icon">↗</div>Trends</div>
+  <div class="bnav" onclick="openCoach()"><div class="bnav-icon">⚡</div>Coach</div>
+  <div class="bnav" onclick="showPage('profile')"><div class="bnav-icon">◎</div>Profile</div>
+</div>
+
+<!-- COACH OVERLAY -->
+<div class="coach-overlay" id="coach-overlay">
+  <div class="co-header">
+    <button class="co-back" onclick="closeCoach()">←</button>
+    <div class="co-title" style="display:flex;align-items:center;gap:8px;">
+      <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjgwIDI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iNjgwIiBoZWlnaHQ9IjI4MCI+Cjx0aXRsZT5WSVRBTCBGaXRuZXNzIENvYWNoIGxvZ288L3RpdGxlPgo8ZGVzYz5WSVRBTCB3b3JkbWFyayBhbmQgRml0bmVzcyBDb2FjaCBzdWJ0aXRsZSBjb250YWluZWQgd2l0aGluIG92YWwsIFYtaGVhcnRiZWF0IGljb24gYXQgbGVmdCBlZGdlPC9kZXNjPgo8ZGVmcz4KICA8cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjRkZGRkZGIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNFQUYwRjgiLz4KICAgIDxzdG9wIG9mZnNldD0iODIlIiAgc3RvcC1jb2xvcj0iI0M4RDREQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOUVCMEI4IiBzdG9wLW9wYWNpdHk9IjAuNCIvPgogIDwvcmFkaWFsR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJ2ZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiM4RkEwQzAiLz4KICAgIDxzdG9wIG9mZnNldD0iMzAlIiAgc3RvcC1jb2xvcj0iIzRCNkZEOCIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NSUiICBzdG9wLWNvbG9yPSIjMjU0MEY4Ii8+CiAgICA8c3RvcCBvZmZzZXQ9Ijc4JSIgIHN0b3AtY29sb3I9IiM2RTVFRjQiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0M4QjBFMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJoZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMEFCQUZDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjMwJSIgIHN0b3AtY29sb3I9IiMxMDgwRkEiLz4KICAgIDxzdG9wIG9mZnNldD0iNjIlIiAgc3RvcC1jb2xvcj0iIzdCMUVGQyIvPgogICAgPHN0b3Agb2Zmc2V0PSI4NSUiICBzdG9wLWNvbG9yPSIjQUEyOEVDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNDMDY4RTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0idGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iI0RDQzhEQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxNSUiICBzdG9wLWNvbG9yPSIjQkFENEY0Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjM4JSIgIHN0b3AtY29sb3I9IiMyNTgxRTUiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzFGNjhEOCIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJzZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjNzhCOEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyQjdFRTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxjbGlwUGF0aCBpZD0ib2MiPgogICAgPGVsbGlwc2UgY3g9IjM0MCIgY3k9IjE0MCIgcng9IjMxOCIgcnk9IjEyOCIvPgogIDwvY2xpcFBhdGg+CjwvZGVmcz4KCjxyZWN0IHdpZHRoPSI2ODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjMDM0NDM2Ii8+CjxlbGxpcHNlIGN4PSIzNDAiIGN5PSIxNDAiIHJ4PSIzMTgiIHJ5PSIxMjgiIGZpbGw9InVybCgjb2cpIi8+Cgo8ZyBjbGlwLXBhdGg9InVybCgjb2MpIj4KICA8cG9seWdvbiBwb2ludHM9IjMwLDYwICA1NCw2MCAgMTA4LDIwMCAgODQsMjAwIiBmaWxsPSJ1cmwoI3ZnKSIvPgogIDxwb2x5Z29uIHBvaW50cz0iODQsMjAwICAxMDgsMjAwICAxNDYsMTA4ICAxMjIsMTA4IiBmaWxsPSJ1cmwoI3ZnKSIgb3BhY2l0eT0iMC44OCIvPgogIDxwb2x5Z29uIHBvaW50cz0iNDIsNjAgIDU0LDYwICAxMDgsMjAwICA5NiwyMDAiIGZpbGw9IiMwQTIwQzgiIG9wYWNpdHk9IjAuMTYiLz4KICA8cG9seWxpbmUKICAgIHBvaW50cz0iMzQsMTQyICA3MiwxNDIgIDg0LDE0MiAgOTYsODYgIDExMCwxOTYgIDEyMiwxMTQgIDEzNiwxNDIgIDE4MiwxNDIiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSJ1cmwoI2hnKSIKICAgIHN0cm9rZS13aWR0aD0iNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9Ijg2IiByPSI1IiAgZmlsbD0iI0Y4QTAzMCIgb3BhY2l0eT0iMC45NSIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iODYiIHI9IjEwIiBmaWxsPSIjRjhBMDMwIiBvcGFjaXR5PSIwLjIyIi8+CiAgPHRleHQKICAgIHg9IjE5NiIgeT0iMTY4IgogICAgZm9udC1mYW1pbHk9IidBcmlhbCBCbGFjaycsJ0ZyYW5rbGluIEdvdGhpYyBIZWF2eScsJ0ltcGFjdCcsc2Fucy1zZXJpZiIKICAgIGZvbnQtc2l6ZT0iMTA0IgogICAgZm9udC13ZWlnaHQ9IjkwMCIKICAgIGxldHRlci1zcGFjaW5nPSItMyIKICAgIGZpbGw9InVybCgjdGcpIgogID5WSVRBTDwvdGV4dD4KICA8dGV4dAogICAgeD0iMjAwIiB5PSIyMTUiCiAgICBmb250LWZhbWlseT0iJ0FyaWFsJywnSGVsdmV0aWNhIE5ldWUnLHNhbnMtc2VyaWYiCiAgICBmb250LXNpemU9IjMwIgogICAgZm9udC13ZWlnaHQ9IjQwMCIKICAgIGxldHRlci1zcGFjaW5nPSIzIgogICAgZmlsbD0idXJsKCNzZykiCiAgPkZJVE5FU1MgQ09BQ0g8L3RleHQ+CjwvZz4KCjwvc3ZnPgo=" alt="VITAL" style="height:20px;width:auto;display:block;" />
+      <span style="color:var(--t400);font-size:12px;font-weight:500;font-family:var(--mono)">Coach</span>
+    </div>
+    <div class="co-status" id="co-status">Reading your data</div>
+  </div>
+  <div class="co-body" id="co-body"></div>
+  <div class="co-footer">
+    <div class="api-row" id="api-row">
+      <input class="api-input" id="api-input" type="password" placeholder="Paste Anthropic API key to activate (sk-ant-...)">
+      <button class="api-connect-btn" onclick="connectAPI()">Connect</button>
+    </div>
+    <div class="api-warn" id="api-warn"></div>
+    <div class="co-chips">
+      <div class="co-chip" onclick="sendQuick('Should I train hard today or take it easy?')">Train today?</div>
+      <div class="co-chip" onclick="sendQuick('Why is my calorie count different from my Apple Watch?')">Why different calories?</div>
+      <div class="co-chip" onclick="sendQuick('What pattern have you spotted this week?')">This week's pattern</div>
+      <div class="co-chip" onclick="sendQuick('Give me a specific plan for today.')">Plan my day</div>
+    </div>
+    <div class="co-input-row">
+      <textarea class="co-input" id="co-input" rows="1" placeholder="Ask your coach anything..." onkeydown="coInputKey(event)" oninput="coResize(this)"></textarea>
+      <button class="co-send" id="co-send" onclick="sendMsg()">↑</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ─────────────────────────────────────────────
+// VITAL Dashboard · Supabase Layer
+// ─────────────────────────────────────────────
+
+const SUPABASE_URL      = 'https://hvglyberbehhlxmcdonj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z2x5YmVyYmVoaGx4bWNkb25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODA0NjksImV4cCI6MjA5ODI1NjQ2OX0.ulcvX_cOtJVLLUU7qqI1iJRzwW0FwzZyaHA_mkFXK6Y';
+
+let sb = null;
+async function initSupabase() {
+  if (sb) return sb;
+  await new Promise(resolve => {
+    const check = setInterval(() => {
+      if (window.supabase) { clearInterval(check); resolve(); }
+    }, 50);
+    setTimeout(() => { clearInterval(check); resolve(); }, 3000);
+  });
+  if (window.supabase && SUPABASE_ANON_KEY !== 'PASTE_YOUR_ANON_KEY_HERE') {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase connected ✓');
+  }
+  return sb;
+}
+
+// ── Load profile from Supabase into local profile object ──
+async function sbLoadProfile() {
+  if (!sb) return;
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+
+  const { data } = await sb
+    .from('user_profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  if (data) {
+    profile.fitness  = data.fitness_level          || profile.fitness;
+    profile.goal     = data.primary_goal           || profile.goal;
+    profile.age      = data.age                    || profile.age;
+    profile.weight   = data.weight_kg              || profile.weight;
+    profile.skin     = data.skin_tone_fitzpatrick  || profile.skin;
+    profile.mh       = data.coaching_mode          || profile.mh;
+    profile.rhr      = data.rhr_baseline           || profile.rhr;
+    profile.hrv      = data.hrv_baseline           || profile.hrv;
+    profile.rhrStd   = data.rhr_std_dev            || profile.rhrStd;
+    profile.hrvStd   = data.hrv_std_dev            || profile.hrvStd;
+    profile.name     = user.email?.split('@')[0]   || profile.name;
+    console.log('Profile loaded ✓', profile.fitness, profile.goal);
+  }
+}
+
+// ── Load real trend data from daily_summaries ──
+async function sbLoadTrendData() {
+  if (!sb) return null;
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return null;
+
+  const from = new Date();
+  from.setDate(from.getDate() - 14);
+
+  const { data } = await sb
+    .from('daily_summaries')
+    .select('summary_date,hrv,hrv_conf,rhr,rhr_conf,sleep_duration_h,sleep_conf,calories_corrected,calorie_conf,recovery_signal')
+    .eq('user_id', user.id)
+    .gte('summary_date', from.toISOString().split('T')[0])
+    .order('summary_date', { ascending: true });
+
+  return data && data.length >= 3 ? data : null;
+}
+
+// ── Save today's corrected metrics ──
+async function sbSaveDailySummary(metrics) {
+  if (!sb) return;
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  await sb.from('daily_summaries').upsert({
+    user_id:            user.id,
+    summary_date:       today,
+    hrv:                metrics.todayHRV,
+    rhr:                metrics.todayRHR,
+    sleep_duration_h:   metrics.todaySleep,
+    calories_raw:       metrics.rawCal,
+    calories_corrected: metrics.calResult?.correctedCal,
+    calorie_conf:       metrics.calResult?.confidence,
+    recovery_signal:    metrics.recovery,
+    coach_insight:      metrics.coachInsight,
+  }, { onConflict: 'user_id,summary_date' });
+}
+
+// ── Coach session persistence ──
+let dashSessionId = null;
+let dashChatHistory = [];
+let dashTokensIn = 0, dashTokensOut = 0;
+
+async function sbStartDashSession(contextSnapshot) {
+  if (!sb) { dashSessionId = 'demo'; return; }
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { dashSessionId = 'demo'; return; }
+
+  const { data } = await sb.from('coach_sessions').insert({
+    user_id:          user.id,
+    session_type:     'chat',
+    context_snapshot: contextSnapshot,
+    model_version:    'claude-sonnet-4-6',
+  }).select().single();
+
+  dashSessionId = data?.id || 'demo';
+}
+
+async function sbSaveDashMessage(role, content) {
+  if (!sb || dashSessionId === 'demo') return;
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  await sb.from('coach_messages').insert({
+    session_id: dashSessionId,
+    user_id:    user.id,
+    role,
+    content,
+  });
+}
+
+async function sbEndDashSession() {
+  if (!sb || dashSessionId === 'demo') return;
+  await sb.from('coach_sessions').update({
+    ended_at:      new Date().toISOString(),
+    input_tokens:  dashTokensIn,
+    output_tokens: dashTokensOut,
+  }).eq('id', dashSessionId);
+}
+
+
+
+// ──────────────────────────────────────────────
+// VITAL CORRECTION ENGINE (embedded)
+// ──────────────────────────────────────────────
+const FITNESS_MULT = {beginner:{base:1.08,label:'Just starting'},casual:{base:0.98,label:'Casually active'},trained:{base:0.78,label:'Consistently training'},athlete:{base:0.68,label:'Competitive athlete'}};
+const ACT_MULT = {cardio:{m:1.00,label:'Cardio / running'},cycling:{m:0.90,label:'Cycling'},hiit:{m:0.85,label:'HIIT'},strength:{m:0.72,label:'Strength training'},walk:{m:0.95,label:'Walking'},yoga:{m:0.88,label:'Yoga'},swim:{m:0.92,label:'Swimming'}};
+const SKIN_PEN = {1:0,2:0,3:0.02,4:0.08,5:0.15,6:0.20};
+const DEV_WAVE = {apple_watch:'green+red',garmin:'green',fitbit:'green',oura:'red+ir',whoop:'green'};
+
+function correctCalories({rawCal,fitnessLevel,activityType,durationMin,avgHR,restingHR}){
+  const fm=FITNESS_MULT[fitnessLevel],am=ACT_MULT[activityType];
+  let modelCal=rawCal*fm.base*am.m,confidence=0.61,corrected=modelCal;
+  if(avgHR&&restingHR&&durationMin&&avgHR>restingHR){
+    const hrR=avgHR-restingHR,eff=fitnessLevel==='athlete'?0.88:fitnessLevel==='trained'?0.93:1.0;
+    const hrCal=0.098*hrR*durationMin*eff;
+    if(hrCal>modelCal*0.4&&hrCal<modelCal*2.0){corrected=(modelCal*0.65)+(hrCal*0.35);confidence=0.74;}
+  }
+  corrected=Math.round(corrected||modelCal);
+  const delta=rawCal-corrected;
+  return{correctedCal:corrected,rawCal,delta,deltaPercent:Math.round((delta/rawCal)*100),confidence,confidenceTier:confidence>=0.70?'corrected':'estimated',model:fm.label,activity:am.label};
+}
+function scoreSleep({durationH,deviceName}){
+  const dConf=durationH>=7?0.90:durationH>=6?0.85:durationH>=5?0.78:0.70;
+  const sMap={apple_watch:0.55,garmin:0.58,fitbit:0.52,oura:0.63,whoop:0.61};
+  const sConf=sMap[deviceName]||0.50;
+  return{durationConf:dConf,stageConf:sConf,showStages:sConf>=0.60};
+}
+function correctHR({fitzpatrickType,deviceName,activityIntensity}){
+  const pen=SKIN_PEN[fitzpatrickType]||0;
+  const wav=DEV_WAVE[deviceName]||'green';
+  const wavR=(wav.includes('red')||wav.includes('ir'))?0.4:1.0;
+  const effPen=pen*wavR;
+  const intM=activityIntensity==='vigorous'?1.4:activityIntensity==='moderate'?1.1:1.0;
+  const conf=Math.round(Math.max(0,1-effPen*intM)*100);
+  return{confidence:conf,confidenceTier:conf>=90?'high':conf>=80?'moderate':'low',warning:conf<85?`up to ${Math.round(effPen*intM*20)}bpm error possible`:null};
+}
+function normalCDF(z){const t=1/(1+0.2316419*Math.abs(z));const d=0.3989423*Math.exp(-z*z/2);const p=d*t*(0.3193815+t*(-0.3565638+t*(1.7814779+t*(-1.8212560+t*1.3302744))));return z>0?1-p:p;}
+function scoreVsBaseline(val,mean,std){const z=(val-mean)/(std||1);const pct=Math.round(normalCDF(z)*100);const tier=pct>=60?'above':pct>=40?'normal':pct>=20?'below':'low';return{percentile:pct,tier};}
+
+// ──────────────────────────────────────────────
+// USER PROFILE (from onboarding or defaults)
+// ──────────────────────────────────────────────
+const profile = {
+  name:'Alex', fitness:'trained', goal:'performance',
+  age:31, weight:75, rhr:58, hrv:52, skin:3, mh:'neutral',
+  rhrStd:3.2, hrvStd:8.1,
+};
+
+// ──────────────────────────────────────────────
+// GENERATE 14-DAY MOCK DATA
+// ──────────────────────────────────────────────
+function seededRandom(seed){let s=seed;return()=>{s=(s*1664525+1013904223)&0xFFFFFFFF;return(s>>>0)/0xFFFFFFFF;};}
+const rng=seededRandom(42);
+
+function genSeries(base,std,n,trend=0){
+  return Array.from({length:n},(_,i)=>Math.round((base+(rng()-0.5)*std*2+trend*i)*10)/10);
+}
+
+const days14 = Array.from({length:14},(_,i)=>{
+  const d=new Date();d.setDate(d.getDate()-13+i);
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+});
+
+const hrvSeries = genSeries(profile.hrv,profile.hrvStd*0.7,14,-0.6);
+const rhrSeries = genSeries(profile.rhr,profile.rhrStd*0.8,14,0.4);
+const sleepSeries = genSeries(6.7,0.6,14,-0.05).map(v=>Math.max(4.5,Math.min(9,v)));
+
+// Today's values (last in series)
+const todayHRV = hrvSeries[13];
+const todayRHR = rhrSeries[13];
+const todaySleep = sleepSeries[13];
+const rawCal = 487;
+
+const calResult = correctCalories({rawCal,fitnessLevel:profile.fitness,activityType:'cardio',avgHR:158,restingHR:profile.rhr,durationMin:42});
+const sleepResult = scoreSleep({durationH:todaySleep,deviceName:'apple_watch'});
+const hrResult = correctHR({fitzpatrickType:profile.skin,deviceName:'garmin',activityIntensity:'vigorous'});
+const hrvScore = scoreVsBaseline(todayHRV,profile.hrv,profile.hrvStd);
+const rhrScore = scoreVsBaseline(todayRHR,profile.rhr,profile.rhrStd);
+
+const engineLog = [
+  `correctCalories()  raw=${rawCal}  →  ${calResult.correctedCal}  (-${calResult.deltaPercent}%)  conf=${Math.round(calResult.confidence*100)}%`,
+  `scoreSleep()       duration=${todaySleep.toFixed(1)}h  durConf=${Math.round(sleepResult.durationConf*100)}%  stages=suppressed`,
+  `correctHR()        fitz=${profile.skin}  conf=${hrResult.confidence}%  (${hrResult.confidenceTier})`,
+  `scoreVsBaseline()  HRV ${todayHRV}ms → ${hrvScore.tier} (${hrvScore.percentile}th pct)`,
+  `scoreVsBaseline()  RHR ${todayRHR}bpm → ${rhrScore.tier} (${rhrScore.percentile}th pct)`,
+];
+
+// ──────────────────────────────────────────────
+// BUILD SIGNAL STRIP
+// ──────────────────────────────────────────────
+function buildSignalStrip(){
+  const signals=[
+    {name:'steps',val:'6,240',conf:0.92,color:'#1D9E75'},
+    {name:'cal',val:calResult.correctedCal,conf:calResult.confidence,color:'#1D9E75'},
+    {name:'sleep',val:todaySleep.toFixed(1)+'h',conf:sleepResult.durationConf,color:sleepResult.durationConf<0.80?'#EF9F27':'#1D9E75'},
+    {name:'rhr',val:Math.round(todayRHR)+'bpm',conf:hrResult.confidence/100,color:rhrScore.tier==='low'||rhrScore.tier==='below'?'#D85A30':'#EF9F27'},
+    {name:'hrv',val:Math.round(todayHRV)+'ms',conf:0.88,color:hrvScore.tier==='low'?'#D85A30':hrvScore.tier==='below'?'#EF9F27':'#1D9E75'},
+  ];
+  document.getElementById('signal-strip').innerHTML=signals.map(s=>`
+    <div class="sig">
+      <div class="sig-name">${s.name}</div>
+      <div class="sig-track"><div class="sig-fill" style="width:${Math.round(s.conf*100)}%;background:${s.color}"></div></div>
+      <div class="sig-val">${s.val}</div>
+      <div class="sig-conf" style="color:${s.color}">${Math.round(s.conf*100)}% conf</div>
+    </div>`).join('');
+}
+
+// ──────────────────────────────────────────────
+// BUILD TODAY PAGE
+// ──────────────────────────────────────────────
+function buildToday(){
+  const now=new Date();
+  document.getElementById('today-date').textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+
+  const titles={low:'Recovery is low today — take it easy',below:'Running below your baseline today',normal:'Looking steady today',above:'Good numbers across the board'};
+  const recovery = (hrvScore.tier==='low'||rhrScore.tier==='below'||todaySleep<5.5)?'low':(hrvScore.tier==='below'?'below':'normal');
+  document.getElementById('today-title').textContent=titles[recovery]||titles.normal;
+  const rb=document.getElementById('recovery-badge');
+  rb.textContent=recovery==='low'?'Low recovery':recovery==='below'?'Below baseline':'On track';
+  rb.className='recovery-badge '+(recovery==='low'?'rec-low':recovery==='below'?'rec-mid':'rec-high');
+
+  const coachTexts={
+    low:`HRV is ${Math.round(((profile.hrv-todayHRV)/profile.hrv)*100)}% below your 30-day baseline and your resting HR has been elevated for 3 days. Combined with ${todaySleep.toFixed(1)}h sleep — today calls for recovery, not a hard session. A 20-min walk or mobility work will serve you better than pushing through.`,
+    below:`Your signals are running a little below your baseline today — nothing alarming, but worth being intentional. Calorie correction brought your burn from ${rawCal} down to ${calResult.correctedCal}. Don't eat back the raw number.`,
+    normal:`Signals look steady. Calorie correction applied: ${rawCal} cal from your device → ${calResult.correctedCal} after accounting for your fitness level. HRV is within your normal range at ${Math.round(todayHRV)}ms.`,
+  };
+  document.getElementById('coach-insight-text').textContent=coachTexts[recovery]||coachTexts.normal;
+
+  const metrics=[
+    {label:'cal burned',val:calResult.correctedCal,unit:'',delta:`was ${rawCal} raw`,dClass:'delta-good',conf:`${Math.round(calResult.confidence*100)}% conf`,accent:calResult.confidence>=0.70?'var(--t400)':'var(--a400)',tag:'corrected'},
+    {label:'sleep',val:todaySleep.toFixed(1),unit:'h',delta:`avg 6.7h · ${todaySleep<6.5?'−':'+'}`+(Math.abs(6.7-todaySleep)*60).toFixed(0)+'m',dClass:todaySleep<5.5?'delta-bad':todaySleep<6.5?'delta-warn':'delta-good',conf:`${Math.round(sleepResult.durationConf*100)}% conf · stages suppressed`,accent:todaySleep>=6.5?'var(--t400)':todaySleep>=5.5?'var(--a400)':'var(--c400)'},
+    {label:'resting HR',val:Math.round(todayRHR),unit:'bpm',delta:`baseline ${profile.rhr} · +${Math.round(todayRHR-profile.rhr)}`,dClass:rhrScore.tier==='low'||rhrScore.tier==='below'?'delta-bad':'delta-warn',conf:`${hrResult.confidence}% conf (Fitz ${profile.skin})`,accent:rhrScore.tier==='low'?'var(--c400)':rhrScore.tier==='below'?'var(--a400)':'var(--t400)'},
+  ];
+  document.getElementById('metric-row').innerHTML=metrics.map(m=>`
+    <div class="mcard">
+      <div class="mcard-accent" style="background:${m.accent}"></div>
+      <div class="mcard-label">${m.label}</div>
+      <div class="mcard-val">${m.val}<span class="mcard-unit">${m.unit}</span></div>
+      <div class="mcard-delta ${m.dClass}">${m.delta}</div>
+      <div class="mcard-conf">${m.conf}</div>
+      ${m.tag?`<div class="correction-tag">✓ ${m.tag}</div>`:''}
+    </div>`).join('');
+
+  const insights=[
+    {title:'Calorie correction: −'+calResult.deltaPercent+'%',text:`Your device reported ${rawCal} cal. VITAL corrected this to ${calResult.correctedCal} cal — ${calResult.model.toLowerCase()} athletes burn less at the same heart rate because cardiovascular efficiency is higher. This is the number to use for nutrition decisions.`,dot:'var(--t400)',line:'var(--t50)',conf:'High',cclass:'cp-high',source:'Apple Watch + Garmin'},
+    {title:'Sleep stages suppressed',text:`Apple Watch sleep stage confidence is 55% — below VITAL's 60% threshold. Stage breakdown hidden to avoid misleading you. Duration trend (${todaySleep.toFixed(1)}h vs your 6.7h average) is the reliable signal.`,dot:'var(--a400)',line:'var(--a50)',conf:'Duration only',cclass:'cp-med',source:'Apple Watch'},
+    {title:'HRV: '+hrvScore.percentile+'th percentile vs your baseline',text:`Today's HRV of ${Math.round(todayHRV)}ms sits at your ${hrvScore.percentile}th percentile over the last 30 days. Your baseline is ${profile.hrv}ms ±${profile.hrvStd}ms. This isn't a population comparison — it's you vs you.`,dot:hrvScore.tier==='low'?'var(--c400)':'var(--a400)',line:hrvScore.tier==='low'?'var(--c50)':'var(--a50)',conf:hrvScore.tier==='low'?'Watch':'Moderate',cclass:hrvScore.tier==='low'?'cp-low':'cp-med',source:'Garmin'},
+    hrResult.warning?{title:'HR sensor bias flagged',text:`Fitzpatrick type ${profile.skin} on a green-light sensor (Garmin) at vigorous intensity: ${hrResult.warning}. VITAL is applying bias correction. Consider a chest strap HR monitor for your hard sessions.`,dot:'var(--c400)',line:'var(--c50)',conf:'Low',cclass:'cp-low',source:'Garmin'}:null,
+  ].filter(Boolean);
+
+  document.getElementById('insight-list').innerHTML=insights.map(i=>`
+    <div class="iitem">
+      <div class="iitem-left"><div class="iitem-dot" style="background:${i.dot}"></div><div class="iitem-conf-line" style="background:${i.line}"></div></div>
+      <div class="iitem-body">
+        <div class="iitem-title">${i.title}</div>
+        <div class="iitem-text">${i.text}</div>
+        <div class="iitem-meta">
+          <span class="conf-pill ${i.cclass}">${i.conf}</span>
+          <span class="source-pill">${i.source}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ──────────────────────────────────────────────
+// CHARTS
+// ──────────────────────────────────────────────
+let charts={};
+const chartDefaults={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y}}},scales:{x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10},color:'#9A9994',maxTicksLimit:7}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{family:'DM Mono',size:10},color:'#9A9994'}}}};
+
+function buildCharts(){
+  const base30Color='rgba(29,158,117,0.15)';
+
+  // HRV
+  charts.hrv=new Chart(document.getElementById('chart-hrv'),{type:'line',data:{labels:days14,datasets:[
+    {data:Array(14).fill(profile.hrv),borderColor:'rgba(29,158,117,0.3)',borderDash:[4,3],borderWidth:1,pointRadius:0,fill:false,label:'baseline'},
+    {data:hrvSeries,borderColor:'#EF9F27',backgroundColor:'rgba(239,159,39,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#EF9F27',tension:0.35,fill:true,label:'hrv'},
+  ]},options:{...chartDefaults,scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,suggestedMin:profile.hrv-20,suggestedMax:profile.hrv+15}}}});
+
+  // RHR
+  charts.rhr=new Chart(document.getElementById('chart-rhr'),{type:'line',data:{labels:days14,datasets:[
+    {data:Array(14).fill(profile.rhr),borderColor:'rgba(29,158,117,0.3)',borderDash:[4,3],borderWidth:1,pointRadius:0,fill:false,label:'baseline'},
+    {data:rhrSeries,borderColor:'#D85A30',backgroundColor:'rgba(216,90,48,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#D85A30',tension:0.35,fill:true,label:'rhr'},
+  ]},options:{...chartDefaults,scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,suggestedMin:profile.rhr-5,suggestedMax:profile.rhr+15}}}});
+
+  // Sleep
+  charts.sleep=new Chart(document.getElementById('chart-sleep'),{type:'bar',data:{labels:days14,datasets:[
+    {data:sleepSeries,backgroundColor:sleepSeries.map(v=>v>=7?'rgba(29,158,117,0.7)':v>=6?'rgba(29,158,117,0.4)':'rgba(239,159,39,0.6)'),borderRadius:4,borderSkipped:false,label:'sleep'},
+    {data:Array(14).fill(6.7),borderColor:'rgba(29,158,117,0.5)',borderDash:[4,3],borderWidth:1.5,pointRadius:0,type:'line',fill:false,label:'avg'},
+  ]},options:{...chartDefaults,scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,suggestedMin:4,suggestedMax:9,ticks:{...chartDefaults.scales.y.ticks,callback:v=>v+'h'}}}}});
+}
+
+// ──────────────────────────────────────────────
+// TRENDS PAGE
+// ──────────────────────────────────────────────
+function buildTrends(){
+  const trendData=[
+    {title:'HRV',series:hrvSeries,baseline:profile.hrv,unit:'ms',color:'#EF9F27',avg:Math.round(hrvSeries.reduce((a,b)=>a+b,0)/14),trend:Math.round(hrvSeries[13]-hrvSeries[0]),trendDir:'down'},
+    {title:'Resting HR',series:rhrSeries,baseline:profile.rhr,unit:'bpm',color:'#D85A30',avg:Math.round(rhrSeries.reduce((a,b)=>a+b,0)/14),trend:Math.round(rhrSeries[13]-rhrSeries[0]),trendDir:'up'},
+    {title:'Sleep duration',series:sleepSeries,baseline:6.7,unit:'h',color:'#1D9E75',avg:Math.round(sleepSeries.reduce((a,b)=>a+b,0)/14*10)/10,trend:Math.round((sleepSeries[13]-sleepSeries[0])*60),trendDir:'down'},
+  ];
+
+  document.getElementById('trend-grid').innerHTML=trendData.map((t,i)=>`
+    <div class="trend-card">
+      <div class="trend-header">
+        <div class="trend-title">${t.title} — 14 days</div>
+        <div class="trend-stat">
+          <div class="trend-big">${t.avg}${t.unit}</div>
+          <div class="trend-dir" style="color:${t.trendDir==='down'&&t.title!=='Sleep duration'?'#D85A30':t.trendDir==='up'&&t.title==='Resting HR'?'#D85A30':'#EF9F27'}">${t.trendDir==='down'?'↓':'↑'} ${Math.abs(t.trend)}${t.unit} vs 14d ago</div>
+        </div>
+      </div>
+      <div class="trend-chart-wrap"><canvas id="trend-chart-${i}"></canvas></div>
+      <div class="stat-row-grid">
+        <div class="stat-mini"><div class="stat-mini-val">${Math.min(...t.series).toFixed(1)}${t.unit}</div><div class="stat-mini-lbl">min</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">${Math.max(...t.series).toFixed(1)}${t.unit}</div><div class="stat-mini-lbl">max</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">${t.avg}${t.unit}</div><div class="stat-mini-lbl">avg</div></div>
+        <div class="stat-mini"><div class="stat-mini-val">${t.baseline}${t.unit}</div><div class="stat-mini-lbl">baseline</div></div>
+      </div>
+    </div>`).join('');
+
+  // Render trend charts after DOM settles
+  requestAnimationFrame(()=>{
+    trendData.forEach((t,i)=>{
+      new Chart(document.getElementById(`trend-chart-${i}`),{type:'line',data:{labels:days14,datasets:[
+        {data:Array(14).fill(t.baseline),borderColor:'rgba(29,158,117,0.3)',borderDash:[4,3],borderWidth:1,pointRadius:0,fill:false},
+        {data:t.series,borderColor:t.color,backgroundColor:t.color+'18',borderWidth:2,pointRadius:2,pointBackgroundColor:t.color,tension:0.35,fill:true},
+      ]},options:{...chartDefaults,scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,suggestedMin:Math.min(...t.series)-5,suggestedMax:Math.max(...t.series)+5}}}});
+    });
+  });
+}
+
+// ──────────────────────────────────────────────
+// PROFILE PAGE
+// ──────────────────────────────────────────────
+function buildProfile(){
+  // Note: profile already loaded from Supabase at init
+
+  document.getElementById('pf-fitness').textContent=FITNESS_MULT[profile.fitness]?.label||profile.fitness;
+  document.getElementById('pf-goal').textContent=({health:'General health',performance:'Performance',weight:'Weight management',recovery:'Recovery'})[profile.goal]||profile.goal;
+  document.getElementById('pf-rhr').textContent=profile.rhr+' bpm ±'+profile.rhrStd;
+  document.getElementById('pf-hrv').textContent=profile.hrv+' ms ±'+profile.hrvStd;
+
+  const confMetrics=[
+    {name:'Steps',conf:92,color:'var(--t400)'},
+    {name:'Resting HR',conf:hrResult.confidence,color:hrResult.confidence>=90?'var(--t400)':'var(--a400)'},
+    {name:'Calories (corrected)',conf:Math.round(calResult.confidence*100),color:'var(--t400)'},
+    {name:'Sleep duration',conf:Math.round(sleepResult.durationConf*100),color:'var(--t400)'},
+    {name:'Sleep stages',conf:Math.round(sleepResult.stageConf*100),color:'var(--a400)'},
+    {name:'HRV',conf:88,color:'var(--t400)'},
+  ];
+  document.getElementById('conf-bars').innerHTML=confMetrics.map(m=>`
+    <div class="conf-bar-row">
+      <div class="conf-bar-lbl">${m.name}</div>
+      <div class="conf-bar-track"><div class="conf-bar-fill" style="width:${m.conf}%;background:${m.color}"></div></div>
+      <div class="conf-bar-val">${m.conf}%</div>
+    </div>`).join('');
+
+  const sources=[
+    {icon:'⌚',bg:'#FAECE7',name:'Apple Health',status:'Live',sc:'st-live',detail:'steps · sleep · HR'},
+    {icon:'⌚',bg:'#E6F1FB',name:'Garmin Connect',status:'Live',sc:'st-live',detail:'GPS · HR zones · HRV'},
+    {icon:'⌚',bg:'#E1F5EE',name:'Oura Ring',status:'Pending OAuth',sc:'st-pend',detail:'connect to unlock ring data'},
+    {icon:'⌚',bg:'#EEEDFE',name:'WHOOP',status:'Pending OAuth',sc:'st-pend',detail:'connect to unlock strain data'},
+  ];
+  document.getElementById('sources-list').innerHTML=sources.map(s=>`
+    <div class="source-card">
+      <div class="source-icon" style="background:${s.bg}">${s.icon}</div>
+      <div style="flex:1"><div class="source-name">${s.name}</div><div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${s.detail}</div></div>
+      <div class="source-status ${s.sc}">${s.status}</div>
+    </div>`).join('');
+
+  document.getElementById('engine-log').innerHTML=engineLog.map(l=>`<div>${l}</div>`).join('');
+}
+
+// ──────────────────────────────────────────────
+// NAVIGATION
+// ──────────────────────────────────────────────
+let trendsBuilt=false;
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nav-tab,.bnav').forEach(t=>t.classList.remove('on'));
+  document.getElementById('page-'+name).classList.add('on');
+  document.querySelectorAll('.nav-tab,.bnav').forEach(t=>{
+    if(t.textContent.trim().toLowerCase().startsWith(name.charAt(0))||t.getAttribute('onclick')?.includes(name)) t.classList.add('on');
+  });
+  if(name==='trends'&&!trendsBuilt){buildTrends();trendsBuilt=true;}
+  if(name==='profile') buildProfile();
+}
+
+// ──────────────────────────────────────────────
+// COACH CHAT
+// ──────────────────────────────────────────────
+let apiKey='',apiConnected=false,chatHistory=[],coachInitialized=false;
+
+async function openCoach(){
+  document.getElementById('coach-overlay').classList.add('open');
+  if(!coachInitialized){
+    coachInitialized=true;
+    const opener=`I've read your data. Quick summary before you ask anything: HRV is ${Math.round(todayHRV)}ms — your ${hrvScore.percentile}th percentile this month. Sleep was ${todaySleep.toFixed(1)}h. Resting HR is elevated at ${Math.round(todayRHR)}bpm. Recovery is running low.\n\nCalorie correction is active: your Apple Watch reported ${rawCal} cal, VITAL corrected to ${calResult.correctedCal}. What would you like to dig into?`;
+    // Start Supabase session
+    const ctx = { hrv:Math.round(todayHRV), rhr:Math.round(todayRHR), sleep:todaySleep,
+      cal_raw:rawCal, cal_corrected:calResult?.correctedCal, recovery:recovery,
+      profile:{ fitness:profile.fitness, goal:profile.goal, mh:profile.mh },
+      date: new Date().toISOString() };
+    await sbStartDashSession(ctx);
+    addCoachMsg('ai',opener);
+    await sbSaveDashMessage('assistant', opener);
+    document.getElementById('co-status').textContent='Data loaded · '+days14[13];
+  }
+}
+function closeCoach(){document.getElementById('coach-overlay').classList.remove('open');}
+
+function connectAPI(){
+  const key=document.getElementById('api-input').value.trim();
+  if(!key.startsWith('sk-')){document.getElementById('api-warn').textContent='Paste a valid key starting with sk-ant-...';return;}
+  apiKey=key;apiConnected=true;
+  document.getElementById('api-row').style.display='none';
+  document.getElementById('api-warn').textContent='';
+  document.getElementById('co-status').textContent='Connected · live';
+}
+
+function addCoachMsg(role,text){
+  const body=document.getElementById('co-body');
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const d=document.createElement('div');
+  d.className=`co-msg ${role}`;
+  d.innerHTML=`<div class="co-bubble">${text.replace(/\n/g,'<br>')}</div><div class="co-time">${now}</div>`;
+  body.appendChild(d);body.scrollTop=body.scrollHeight;
+  chatHistory.push({role:role==='ai'?'assistant':'user',content:text});
+}
+
+function showTyping(){
+  const body=document.getElementById('co-body');
+  const d=document.createElement('div');
+  d.className='co-msg ai';d.id='typing';
+  d.innerHTML='<div class="typing"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>';
+  body.appendChild(d);body.scrollTop=body.scrollHeight;
+}
+function removeTyping(){const t=document.getElementById('typing');if(t)t.remove();}
+
+function buildSystemPrompt(){
+  return `You are VITAL Coach, an AI health and fitness guide.
+
+USER PROFILE:
+- Fitness: ${profile.fitness} (${FITNESS_MULT[profile.fitness]?.label})
+- Goal: ${profile.goal}
+- Age: ${profile.age}, Weight: ${profile.weight}kg
+- Coaching mode: ${profile.mh}
+- Skin tone: Fitzpatrick ${profile.skin}
+
+TODAY'S CORRECTED DATA (already processed by VITAL correction engine):
+- Calories: ${rawCal} raw → ${calResult.correctedCal} corrected (−${calResult.deltaPercent}%, conf ${Math.round(calResult.confidence*100)}%)
+- Sleep: ${todaySleep.toFixed(1)}h (conf ${Math.round(sleepResult.durationConf*100)}% — stages suppressed, unreliable)
+- Resting HR: ${Math.round(todayRHR)}bpm (baseline ${profile.rhr}bpm — elevated day 3)
+- HRV: ${Math.round(todayHRV)}ms (baseline ${profile.hrv}ms ±${profile.hrvStd} — ${hrvScore.percentile}th percentile)
+- HR sensor confidence: ${hrResult.confidence}% — ${hrResult.warning||'within normal range'}
+- Recovery signal: LOW
+
+RULES:
+- Lead with the most actionable insight
+- Under 120 words unless user asks for detail
+- No bullet points unless 3+ items
+- Never diagnose. Surface data, suggest doctor if concerning.
+- Never recommend training hard when recovery=LOW
+- Always use corrected calorie figure (${calResult.correctedCal}), never raw (${rawCal})
+- Speak like a smart, warm friend — not a clinical report`;
+}
+
+async function sendMsg(){
+  const inp=document.getElementById('co-input');
+  const text=inp.value.trim();
+  if(!text)return;
+  inp.value='';inp.style.height='auto';
+  addCoachMsg('user',text);
+    sbSaveDashMessage('user',text);
+  document.getElementById('co-send').disabled=true;
+
+  if(!apiConnected){
+    setTimeout(()=>{
+      addCoachMsg('ai','Add your Anthropic API key at the top to get real AI coaching. In the meantime — based on your data today, recovery is low and I\'d recommend against anything intense.');
+    },400);
+    document.getElementById('co-send').disabled=false;
+    return;
+  }
+
+  document.getElementById('co-status').textContent='Thinking...';
+  showTyping();
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,system:buildSystemPrompt(),messages:chatHistory.filter(m=>m.role!=='system')})});
+    const data=await resp.json();
+    removeTyping();
+    if(data.content?.[0]){const reply=data.content[0].text;
+      addCoachMsg('ai',reply);
+      sbSaveDashMessage('assistant',reply);
+      dashTokensIn  += data.usage?.input_tokens  || 0;
+      dashTokensOut += data.usage?.output_tokens || 0;}
+    else{addCoachMsg('ai','API error — check your key and try again.');}
+    document.getElementById('co-status').textContent='Connected · data loaded';
+  }catch(e){
+    removeTyping();
+    addCoachMsg('ai','Connection error. Check your API key and internet connection.');
+    document.getElementById('co-status').textContent='Error';
+  }
+  document.getElementById('co-send').disabled=false;
+}
+
+function sendQuick(t){document.getElementById('co-input').value=t;sendMsg();}
+function coInputKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function coResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+
+// ──────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────
+(async () => {
+  await initSupabase();
+  await sbLoadProfile();          // pull real profile from DB
+  buildSignalStrip();
+  buildToday();
+  requestAnimationFrame(()=>{ buildCharts(); });
+  // Save today's summary to Supabase
+  await sbSaveDailySummary({
+    todayHRV, todayRHR, todaySleep, rawCal, calResult,
+    recovery, coachInsight: document.getElementById('coach-insight-text')?.textContent || ''
+  });
+})();
+
+</script>
+
+
+</body>
+</html>

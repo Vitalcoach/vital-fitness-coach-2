@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VITAL — AI fitness intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --teal-50: #E1F5EE; --teal-400: #1D9E75; --teal-600: #0F6E56; --teal-900: #04342C;
+    --purple-50: #EEEDFE; --purple-400: #7F77DD; --purple-600: #534AB7; --purple-900: #26215C;
+    --amber-50: #FAEEDA; --amber-400: #EF9F27; --amber-600: #854F0B; --amber-900: #412402;
+    --coral-50: #FAECE7; --coral-400: #D85A30; --coral-600: #993C1D; --coral-900: #4A1B0C;
+    --gray-50: #F7F6F2; --gray-100: #EEECE6; --gray-200: #D3D1C7; --gray-400: #888780;
+    --gray-600: #5F5E5A; --gray-800: #2C2C2A; --gray-900: #1A1A18;
+    --bg: #F7F6F2; --surface: #FFFFFF; --border: rgba(44,44,42,0.12);
+    --text: #1A1A18; --text-2: #5F5E5A; --text-3: #888780;
+    --radius: 10px; --radius-lg: 14px; --radius-xl: 20px;
+    --font: 'Inter', sans-serif; --mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── NAV ── */
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  .nav-brand { font-size: 17px; font-weight: 600; letter-spacing: -.5px; color: var(--teal-600); }
+  .nav-brand span { color: var(--gray-400); font-weight: 300; }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  .nav-pill { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; background: var(--teal-50); color: var(--teal-600); }
+
+  /* ── BUTTONS ── */
+  .btn { padding: .6rem 1.25rem; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: opacity .15s, transform .1s; font-family: var(--font); }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--teal-600); color: #fff; }
+  .btn-primary:hover { opacity: .9; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-2); }
+  .btn-ghost:hover { background: var(--gray-100); }
+  .btn-sm { padding: .4rem .9rem; font-size: 13px; }
+  .btn-full { width: 100%; }
+
+  /* ── ONBOARDING ── */
+  #screen-onboard { align-items: center; justify-content: center; padding: 2rem 1rem; background: var(--bg); }
+  .onboard-card { background: var(--surface); border-radius: var(--radius-xl); border: 1px solid var(--border); max-width: 460px; width: 100%; overflow: hidden; }
+  .onboard-progress { height: 3px; background: var(--gray-100); }
+  .onboard-progress-fill { height: 100%; background: var(--teal-400); transition: width .4s ease; border-radius: 2px; }
+  .onboard-body { padding: 1.75rem 1.75rem 1.25rem; }
+  .onboard-step-tag { font-size: 11px; font-weight: 500; color: var(--teal-600); text-transform: uppercase; letter-spacing: .07em; margin-bottom: .5rem; }
+  .onboard-title { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.25; margin-bottom: .4rem; letter-spacing: -.3px; }
+  .onboard-sub { font-size: 13px; color: var(--text-2); line-height: 1.55; margin-bottom: 1.25rem; }
+  .onboard-footer { padding: 1rem 1.75rem 1.5rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .onboard-step { display: none; }
+  .onboard-step.active { display: block; }
+
+  .choice-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: .75rem; }
+  .choice-btn { padding: .7rem .85rem; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; transition: all .15s; font-family: var(--font); }
+  .choice-btn:hover { border-color: var(--teal-400); }
+  .choice-btn.sel { border-color: var(--teal-600); background: var(--teal-50); }
+  .choice-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .choice-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .choice-btn.sel .choice-label { color: var(--teal-900); }
+
+  .field-label { font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 5px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .field-input { width: 100%; padding: .55rem .75rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); font-size: 14px; font-family: var(--font); color: var(--text); outline: none; transition: border-color .15s; }
+  .field-input:focus { border-color: var(--teal-400); }
+
+  .skin-row { display: flex; gap: 8px; margin: .35rem 0 .75rem; }
+  .skin-swatch { flex: 1; height: 30px; border-radius: var(--radius); cursor: pointer; border: 2.5px solid transparent; transition: all .15s; }
+  .skin-swatch.sel { border-color: var(--teal-600); }
+  .skin-note { font-size: 11px; color: var(--text-3); line-height: 1.5; }
+
+  .info-box { background: var(--amber-50); border-radius: var(--radius); padding: .75rem; margin-top: .75rem; }
+  .info-box-title { font-size: 11px; font-weight: 600; color: var(--amber-600); margin-bottom: .2rem; }
+  .info-box-text { font-size: 12px; color: var(--amber-900); line-height: 1.5; }
+
+  /* ── DASHBOARD ── */
+  #screen-dash { flex-direction: column; }
+  .dash-body { flex: 1; padding: 1.25rem; max-width: 680px; width: 100%; margin: 0 auto; }
+
+  .coach-banner { background: var(--teal-900); color: #fff; border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 10px; cursor: pointer; transition: opacity .15s; }
+  .coach-banner:hover { opacity: .93; }
+  .coach-icon { width: 34px; height: 34px; border-radius: 50%; background: var(--teal-400); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+  .coach-banner-body { flex: 1; }
+  .coach-banner-label { font-size: 10px; font-weight: 500; color: var(--teal-400); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 3px; }
+  .coach-banner-text { font-size: 13px; line-height: 1.55; color: rgba(255,255,255,.9); }
+  .coach-banner-cta { font-size: 12px; font-weight: 500; color: var(--teal-400); margin-top: 5px; }
+
+  .section-label { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: .07em; margin-bottom: .6rem; }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: .9rem; }
+  .metric-val { font-size: 22px; font-weight: 600; color: var(--text); letter-spacing: -.5px; }
+  .metric-lbl { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .metric-delta { font-size: 11px; margin-top: 4px; font-weight: 500; }
+  .delta-good { color: var(--teal-600); }
+  .delta-warn { color: var(--amber-600); }
+  .delta-bad { color: var(--coral-600); }
+  .metric-conf { font-size: 10px; font-family: var(--mono); color: var(--text-3); margin-top: 3px; }
+
+  .insight-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1rem; }
+  .insight-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: .85rem 1rem; display: flex; align-items: flex-start; gap: 10px; }
+  .insight-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .insight-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .insight-sub { font-size: 12px; color: var(--text-2); margin-top: 2px; line-height: 1.45; }
+  .conf-badge { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 10px; margin-left: auto; flex-shrink: 0; align-self: flex-start; }
+  .conf-high { background: var(--teal-50); color: var(--teal-600); }
+  .conf-med { background: var(--amber-50); color: var(--amber-600); }
+  .conf-low { background: var(--coral-50); color: var(--coral-600); }
+
+  .bottom-nav { background: var(--surface); border-top: 1px solid var(--border); display: flex; padding: .5rem 0 .75rem; position: sticky; bottom: 0; }
+  .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: .35rem 0; font-size: 10px; color: var(--text-3); transition: color .15s; }
+  .bnav-item.active { color: var(--teal-600); }
+  .bnav-icon { font-size: 20px; line-height: 1; }
+
+  /* ── COACH CHAT ── */
+  #screen-coach { flex-direction: column; }
+  .coach-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: .85rem 1.25rem; display: flex; align-items: center; gap: 10px; }
+  .coach-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--teal-900); display: flex; align-items: center; justify-content: center; color: var(--teal-400); font-size: 16px; flex-shrink: 0; }
+  .coach-header-body { flex: 1; }
+  .coach-header-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .coach-header-status { font-size: 11px; color: var(--teal-600); }
+  .back-btn { font-size: 22px; color: var(--text-3); cursor: pointer; padding: 4px; line-height: 1; background: none; border: none; font-family: var(--font); }
+  .back-btn:hover { color: var(--text); }
+
+  .chat-body { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 12px; max-width: 680px; width: 100%; margin: 0 auto; }
+  .chat-msg { display: flex; flex-direction: column; max-width: 85%; }
+  .chat-msg.ai { align-self: flex-start; }
+  .chat-msg.user { align-self: flex-end; }
+  .chat-bubble { padding: .7rem .95rem; border-radius: 14px; font-size: 13px; line-height: 1.6; }
+  .chat-msg.ai .chat-bubble { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 3px; }
+  .chat-msg.user .chat-bubble { background: var(--teal-900); color: #fff; border-bottom-right-radius: 3px; }
+  .chat-time { font-size: 10px; color: var(--text-3); margin-top: 3px; font-family: var(--mono); padding: 0 4px; }
+  .chat-msg.user .chat-time { text-align: right; }
+  .data-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-family: var(--mono); background: var(--gray-100); color: var(--text-3); padding: 2px 8px; border-radius: 10px; margin-bottom: 6px; }
+
+  .typing { display: flex; gap: 4px; align-items: center; padding: .7rem .95rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; border-bottom-left-radius: 3px; width: fit-content; }
+  .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-400); animation: bounce 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: .2s; }
+  .typing-dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+  .chat-input-area { background: var(--surface); border-top: 1px solid var(--border); padding: .75rem 1.25rem; max-width: 680px; width: 100%; margin: 0 auto; }
+  .chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input { flex: 1; padding: .65rem .9rem; border-radius: 22px; border: 1px solid var(--border); background: var(--bg); font-size: 14px; font-family: var(--font); color: var(--text); outline: none; resize: none; max-height: 120px; line-height: 1.4; }
+  .chat-input:focus { border-color: var(--teal-400); }
+  .send-btn { width: 38px; height: 38px; border-radius: 50%; background: var(--teal-600); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity .15s; color: #fff; font-size: 16px; font-family: var(--font); }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:disabled { opacity: .4; cursor: default; }
+  .quick-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: .6rem; }
+  .chip { font-size: 12px; padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; color: var(--text-2); transition: all .15s; font-family: var(--font); white-space: nowrap; }
+  .chip:hover { border-color: var(--teal-400); color: var(--teal-600); }
+  .api-warning { font-size: 11px; color: var(--text-3); text-align: center; padding: .4rem 0 0; }
+  .api-key-row { display: flex; gap: 6px; margin-bottom: .5rem; }
+  .api-key-input { flex: 1; padding: .5rem .75rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); font-size: 13px; font-family: var(--mono); color: var(--text); outline: none; }
+  .api-key-input:focus { border-color: var(--teal-400); }
+
+  /* ── SPLASH ── */
+  #screen-splash { align-items: center; justify-content: center; background: var(--teal-900); }
+  .splash-inner { text-align: center; padding: 2rem; }
+  .splash-logo { font-size: 48px; font-weight: 700; color: #fff; letter-spacing: -2px; margin-bottom: .5rem; }
+  .splash-logo span { color: var(--teal-400); }
+  .splash-tag { font-size: 15px; color: rgba(255,255,255,.55); margin-bottom: 2.5rem; font-weight: 300; }
+  .splash-btn { background: var(--teal-400); color: var(--teal-900); font-weight: 600; font-size: 15px; padding: .85rem 2.5rem; border-radius: 30px; border: none; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
+  .splash-btn:hover { opacity: .9; }
+
+  /* helpers */
+  .mt-1 { margin-top: .5rem; }
+  .hidden { display: none !important; }
+  .full-center { display: flex; align-items: center; justify-content: center; flex: 1; }
+  .empty-state { text-align: center; color: var(--text-3); font-size: 13px; padding: 2rem; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="screen-auth" class="screen">
+  <div class="onboard-card" style="max-width:400px;">
+    <div class="onboard-body" style="padding:2rem 1.75rem 1rem;">
+      <div style="text-align:center;margin-bottom:1.5rem;">
+        <div style="font-size:13px;color:var(--teal-400);font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem">VITAL Fitness Coach</div>
+        <div id="auth-title" class="onboard-title" style="font-size:22px;">Welcome back</div>
+        <div class="onboard-sub">Your AI-powered fitness coach</div>
+      </div>
+      <div id="auth-error" style="display:none;background:#FCEBEB;color:#791F1F;font-size:12px;padding:.6rem .85rem;border-radius:8px;margin-bottom:.75rem;"></div>
+      <div>
+        <div class="field-label">Email</div>
+        <input class="field-input" id="auth-email" type="email" placeholder="you@example.com" style="margin-bottom:.75rem;width:100%;">
+        <div class="field-label">Password</div>
+        <input class="field-input" id="auth-password" type="password" placeholder="••••••••" style="width:100%;">
+      </div>
+    </div>
+    <div class="onboard-footer">
+      <div id="auth-loading" style="display:none;text-align:center;font-size:13px;color:var(--text2);padding:.25rem 0;">Signing in...</div>
+      <div id="auth-mode" data-mode="signin"></div>
+      <button class="btn btn-primary btn-full" id="auth-submit-btn" onclick="handleSignIn()">Sign in</button>
+      <div style="text-align:center;font-size:12px;color:var(--text2);margin-top:.5rem;" id="auth-toggle">
+        New to VITAL? <a href="#" onclick="toggleAuthMode()" style="color:var(--teal-600);font-weight:500;">Create account</a>
+      </div>
+      <div style="text-align:center;margin-top:.75rem;">
+        <a href="#" onclick="goTo('auth')" style="font-size:12px;color:var(--text3);">Continue without account →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SPLASH -->
+<div id="screen-splash" class="screen active">
+  <div class="splash-inner">
+    <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjgwIDI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iNjgwIiBoZWlnaHQ9IjI4MCI+Cjx0aXRsZT5WSVRBTCBGaXRuZXNzIENvYWNoIGxvZ288L3RpdGxlPgo8ZGVzYz5WSVRBTCB3b3JkbWFyayBhbmQgRml0bmVzcyBDb2FjaCBzdWJ0aXRsZSBjb250YWluZWQgd2l0aGluIG92YWwsIFYtaGVhcnRiZWF0IGljb24gYXQgbGVmdCBlZGdlPC9kZXNjPgo8ZGVmcz4KICA8cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjRkZGRkZGIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNFQUYwRjgiLz4KICAgIDxzdG9wIG9mZnNldD0iODIlIiAgc3RvcC1jb2xvcj0iI0M4RDREQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOUVCMEI4IiBzdG9wLW9wYWNpdHk9IjAuNCIvPgogIDwvcmFkaWFsR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJ2ZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiM4RkEwQzAiLz4KICAgIDxzdG9wIG9mZnNldD0iMzAlIiAgc3RvcC1jb2xvcj0iIzRCNkZEOCIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NSUiICBzdG9wLWNvbG9yPSIjMjU0MEY4Ii8+CiAgICA8c3RvcCBvZmZzZXQ9Ijc4JSIgIHN0b3AtY29sb3I9IiM2RTVFRjQiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0M4QjBFMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJoZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMEFCQUZDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjMwJSIgIHN0b3AtY29sb3I9IiMxMDgwRkEiLz4KICAgIDxzdG9wIG9mZnNldD0iNjIlIiAgc3RvcC1jb2xvcj0iIzdCMUVGQyIvPgogICAgPHN0b3Agb2Zmc2V0PSI4NSUiICBzdG9wLWNvbG9yPSIjQUEyOEVDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNDMDY4RTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0idGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iI0RDQzhEQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxNSUiICBzdG9wLWNvbG9yPSIjQkFENEY0Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjM4JSIgIHN0b3AtY29sb3I9IiMyNTgxRTUiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzFGNjhEOCIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJzZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjNzhCOEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyQjdFRTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxjbGlwUGF0aCBpZD0ib2MiPgogICAgPGVsbGlwc2UgY3g9IjM0MCIgY3k9IjE0MCIgcng9IjMxOCIgcnk9IjEyOCIvPgogIDwvY2xpcFBhdGg+CjwvZGVmcz4KCjxyZWN0IHdpZHRoPSI2ODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjMDM0NDM2Ii8+CjxlbGxpcHNlIGN4PSIzNDAiIGN5PSIxNDAiIHJ4PSIzMTgiIHJ5PSIxMjgiIGZpbGw9InVybCgjb2cpIi8+Cgo8ZyBjbGlwLXBhdGg9InVybCgjb2MpIj4KICA8cG9seWdvbiBwb2ludHM9IjMwLDYwICA1NCw2MCAgMTA4LDIwMCAgODQsMjAwIiBmaWxsPSJ1cmwoI3ZnKSIvPgogIDxwb2x5Z29uIHBvaW50cz0iODQsMjAwICAxMDgsMjAwICAxNDYsMTA4ICAxMjIsMTA4IiBmaWxsPSJ1cmwoI3ZnKSIgb3BhY2l0eT0iMC44OCIvPgogIDxwb2x5Z29uIHBvaW50cz0iNDIsNjAgIDU0LDYwICAxMDgsMjAwICA5NiwyMDAiIGZpbGw9IiMwQTIwQzgiIG9wYWNpdHk9IjAuMTYiLz4KICA8cG9seWxpbmUKICAgIHBvaW50cz0iMzQsMTQyICA3MiwxNDIgIDg0LDE0MiAgOTYsODYgIDExMCwxOTYgIDEyMiwxMTQgIDEzNiwxNDIgIDE4MiwxNDIiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSJ1cmwoI2hnKSIKICAgIHN0cm9rZS13aWR0aD0iNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9Ijg2IiByPSI1IiAgZmlsbD0iI0Y4QTAzMCIgb3BhY2l0eT0iMC45NSIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iODYiIHI9IjEwIiBmaWxsPSIjRjhBMDMwIiBvcGFjaXR5PSIwLjIyIi8+CiAgPHRleHQKICAgIHg9IjE5NiIgeT0iMTY4IgogICAgZm9udC1mYW1pbHk9IidBcmlhbCBCbGFjaycsJ0ZyYW5rbGluIEdvdGhpYyBIZWF2eScsJ0ltcGFjdCcsc2Fucy1zZXJpZiIKICAgIGZvbnQtc2l6ZT0iMTA0IgogICAgZm9udC13ZWlnaHQ9IjkwMCIKICAgIGxldHRlci1zcGFjaW5nPSItMyIKICAgIGZpbGw9InVybCgjdGcpIgogID5WSVRBTDwvdGV4dD4KICA8dGV4dAogICAgeD0iMjAwIiB5PSIyMTUiCiAgICBmb250LWZhbWlseT0iJ0FyaWFsJywnSGVsdmV0aWNhIE5ldWUnLHNhbnMtc2VyaWYiCiAgICBmb250LXNpemU9IjMwIgogICAgZm9udC13ZWlnaHQ9IjQwMCIKICAgIGxldHRlci1zcGFjaW5nPSIzIgogICAgZmlsbD0idXJsKCNzZykiCiAgPkZJVE5FU1MgQ09BQ0g8L3RleHQ+CjwvZz4KCjwvc3ZnPgo=" alt="VITAL" style="height:80px;width:auto;display:block;margin:0 auto 0.75rem;" />
+    <div class="splash-tag">Your devices track everything.<br>VITAL makes sense of it.</div>
+    <button class="splash-btn" onclick="goTo('auth')">Get started</button>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="screen-onboard" class="screen">
+  <div class="onboard-card">
+    <div class="onboard-progress"><div class="onboard-progress-fill" id="ob-progress" style="width:14%"></div></div>
+    <div class="onboard-body">
+      <div class="onboard-step active" id="ob-1">
+        <div class="onboard-step-tag">Step 1 of 5</div>
+        <div class="onboard-title">How would you describe your fitness level?</div>
+        <div class="onboard-sub">This seeds your calorie correction model from day one.</div>
+        <div class="choice-group">
+          <button class="choice-btn" data-group="fitness" data-val="beginner" onclick="pick(this)"><div class="choice-label">Just starting</div><div class="choice-sub">New to regular exercise</div></button>
+          <button class="choice-btn" data-group="fitness" data-val="casual" onclick="pick(this)"><div class="choice-label">Casually active</div><div class="choice-sub">3–4x a week, mixed</div></button>
+          <button class="choice-btn sel" data-group="fitness" data-val="trained" onclick="pick(this)"><div class="choice-label">Consistently training</div><div class="choice-sub">5+x structured</div></button>
+          <button class="choice-btn" data-group="fitness" data-val="athlete" onclick="pick(this)"><div class="choice-label">Competitive athlete</div><div class="choice-sub">High-volume, goal-driven</div></button>
+        </div>
+      </div>
+      <div class="onboard-step" id="ob-2">
+        <div class="onboard-step-tag">Step 2 of 5</div>
+        <div class="onboard-title">What's your primary goal?</div>
+        <div class="onboard-sub">Your coach will frame everything around this.</div>
+        <div class="choice-group">
+          <button class="choice-btn" data-group="goal" data-val="health" onclick="pick(this)"><div class="choice-label">General health</div><div class="choice-sub">Feel better daily</div></button>
+          <button class="choice-btn sel" data-group="goal" data-val="performance" onclick="pick(this)"><div class="choice-label">Performance</div><div class="choice-sub">Hit specific targets</div></button>
+          <button class="choice-btn" data-group="goal" data-val="weight" onclick="pick(this)"><div class="choice-label">Weight management</div><div class="choice-sub">Lose or maintain</div></button>
+          <button class="choice-btn" data-group="goal" data-val="recovery" onclick="pick(this)"><div class="choice-label">Recovery</div><div class="choice-sub">Injury or burnout</div></button>
+        </div>
+      </div>
+      <div class="onboard-step" id="ob-3">
+        <div class="onboard-step-tag">Step 3 of 5</div>
+        <div class="onboard-title">A few numbers to calibrate your baseline</div>
+        <div class="onboard-sub">Enter what you know — estimates are fine.</div>
+        <div class="field-row">
+          <div><div class="field-label">Age</div><input class="field-input" id="f-age" type="number" placeholder="31" value="31"></div>
+          <div><div class="field-label">Weight (kg)</div><input class="field-input" id="f-weight" type="number" placeholder="75" value="75"></div>
+        </div>
+        <div class="field-row">
+          <div><div class="field-label">Resting HR (bpm)</div><input class="field-input" id="f-rhr" type="number" placeholder="58" value="58"></div>
+          <div><div class="field-label">HRV (ms, if known)</div><input class="field-input" id="f-hrv" type="number" placeholder="52" value="52"></div>
+        </div>
+      </div>
+      <div class="onboard-step" id="ob-4">
+        <div class="onboard-step-tag">Step 4 of 5</div>
+        <div class="onboard-title">Sensor calibration</div>
+        <div class="onboard-sub">Which skin tone is closest to yours? Used only to correct heart rate sensor bias.</div>
+        <div class="skin-row">
+          <div class="skin-swatch" style="background:#F5D5B0" onclick="pickSkin(this,1)" title="Type I"></div>
+          <div class="skin-swatch" style="background:#E8BE96" onclick="pickSkin(this,2)" title="Type II"></div>
+          <div class="skin-swatch sel" style="background:#C8956C" onclick="pickSkin(this,3)" title="Type III"></div>
+          <div class="skin-swatch" style="background:#A0694A" onclick="pickSkin(this,4)" title="Type IV"></div>
+          <div class="skin-swatch" style="background:#7B4A32" onclick="pickSkin(this,5)" title="Type V"></div>
+          <div class="skin-swatch" style="background:#4A2C1A" onclick="pickSkin(this,6)" title="Type VI"></div>
+        </div>
+        <div class="skin-note">Fitzpatrick scale I–VI · Used only for sensor calibration · Never shared</div>
+        <div class="info-box">
+          <div class="info-box-title">Why this matters</div>
+          <div class="info-box-text">Wearable sensors use green light, which melanin absorbs. For types IV–VI this can cause HR errors of 10–20% during exercise. VITAL corrects for this automatically.</div>
+        </div>
+      </div>
+      <div class="onboard-step" id="ob-5">
+        <div class="onboard-step-tag">Step 5 of 5</div>
+        <div class="onboard-title">How do you feel about tracking data?</div>
+        <div class="onboard-sub">Your coach adjusts its style based on this.</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <button class="choice-btn" data-group="mh" data-val="motivated" onclick="pick(this)"><div class="choice-label">Motivated — I love the numbers</div><div class="choice-sub">Standard mode: scores, detail, streaks</div></button>
+          <button class="choice-btn sel" data-group="mh" data-val="neutral" onclick="pick(this)"><div class="choice-label">Neutral — it's just information</div><div class="choice-sub">Balanced feedback, no pressure</div></button>
+          <button class="choice-btn" data-group="mh" data-val="gentle" onclick="pick(this)"><div class="choice-label">Sometimes anxious about bad days</div><div class="choice-sub">Gentle mode: trends over verdicts</div></button>
+          <button class="choice-btn" data-group="mh" data-val="mh" onclick="pick(this)"><div class="choice-label">It can really affect my mood</div><div class="choice-sub">Wellbeing mode: no daily scores</div></button>
+        </div>
+      </div>
+    </div>
+    <div class="onboard-footer">
+      <button class="btn btn-primary btn-full" id="ob-next-btn" onclick="obNext()">Continue</button>
+      <button class="btn btn-ghost btn-full btn-sm" id="ob-back-btn" onclick="obBack()" style="display:none">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="screen-dash" class="screen">
+  <div class="nav">
+   <div class="nav-brand" style="display:flex;align-items:center;">
+      <span style="display:inline-flex;align-items:center;background:#04342C;border-radius:8px;padding:3px 10px;">
+        <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjgwIDI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iNjgwIiBoZWlnaHQ9IjI4MCI+Cjx0aXRsZT5WSVRBTCBGaXRuZXNzIENvYWNoIGxvZ288L3RpdGxlPgo8ZGVzYz5WSVRBTCB3b3JkbWFyayBhbmQgRml0bmVzcyBDb2FjaCBzdWJ0aXRsZSBjb250YWluZWQgd2l0aGluIG92YWwsIFYtaGVhcnRiZWF0IGljb24gYXQgbGVmdCBlZGdlPC9kZXNjPgo8ZGVmcz4KICA8cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjRkZGRkZGIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNFQUYwRjgiLz4KICAgIDxzdG9wIG9mZnNldD0iODIlIiAgc3RvcC1jb2xvcj0iI0M4RDREQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOUVCMEI4IiBzdG9wLW9wYWNpdHk9IjAuNCIvPgogIDwvcmFkaWFsR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJ2ZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiM4RkEwQzAiLz4KICAgIDxzdG9wIG9mZnNldD0iMzAlIiAgc3RvcC1jb2xvcj0iIzRCNkZEOCIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NSUiICBzdG9wLWNvbG9yPSIjMjU0MEY4Ii8+CiAgICA8c3RvcCBvZmZzZXQ9Ijc4JSIgIHN0b3AtY29sb3I9IiM2RTVFRjQiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0M4QjBFMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJoZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMEFCQUZDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjMwJSIgIHN0b3AtY29sb3I9IiMxMDgwRkEiLz4KICAgIDxzdG9wIG9mZnNldD0iNjIlIiAgc3RvcC1jb2xvcj0iIzdCMUVGQyIvPgogICAgPHN0b3Agb2Zmc2V0PSI4NSUiICBzdG9wLWNvbG9yPSIjQUEyOEVDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNDMDY4RTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0idGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iI0RDQzhEQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxNSUiICBzdG9wLWNvbG9yPSIjQkFENEY0Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjM4JSIgIHN0b3AtY29sb3I9IiMyNTgxRTUiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzFGNjhEOCIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJzZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjNzhCOEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyQjdFRTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxjbGlwUGF0aCBpZD0ib2MiPgogICAgPGVsbGlwc2UgY3g9IjM0MCIgY3k9IjE0MCIgcng9IjMxOCIgcnk9IjEyOCIvPgogIDwvY2xpcFBhdGg+CjwvZGVmcz4KCjxyZWN0IHdpZHRoPSI2ODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjMDM0NDM2Ii8+CjxlbGxpcHNlIGN4PSIzNDAiIGN5PSIxNDAiIHJ4PSIzMTgiIHJ5PSIxMjgiIGZpbGw9InVybCgjb2cpIi8+Cgo8ZyBjbGlwLXBhdGg9InVybCgjb2MpIj4KICA8cG9seWdvbiBwb2ludHM9IjMwLDYwICA1NCw2MCAgMTA4LDIwMCAgODQsMjAwIiBmaWxsPSJ1cmwoI3ZnKSIvPgogIDxwb2x5Z29uIHBvaW50cz0iODQsMjAwICAxMDgsMjAwICAxNDYsMTA4ICAxMjIsMTA4IiBmaWxsPSJ1cmwoI3ZnKSIgb3BhY2l0eT0iMC44OCIvPgogIDxwb2x5Z29uIHBvaW50cz0iNDIsNjAgIDU0LDYwICAxMDgsMjAwICA5NiwyMDAiIGZpbGw9IiMwQTIwQzgiIG9wYWNpdHk9IjAuMTYiLz4KICA8cG9seWxpbmUKICAgIHBvaW50cz0iMzQsMTQyICA3MiwxNDIgIDg0LDE0MiAgOTYsODYgIDExMCwxOTYgIDEyMiwxMTQgIDEzNiwxNDIgIDE4MiwxNDIiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSJ1cmwoI2hnKSIKICAgIHN0cm9rZS13aWR0aD0iNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9Ijg2IiByPSI1IiAgZmlsbD0iI0Y4QTAzMCIgb3BhY2l0eT0iMC45NSIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iODYiIHI9IjEwIiBmaWxsPSIjRjhBMDMwIiBvcGFjaXR5PSIwLjIyIi8+CiAgPHRleHQKICAgIHg9IjE5NiIgeT0iMTY4IgogICAgZm9udC1mYW1pbHk9IidBcmlhbCBCbGFjaycsJ0ZyYW5rbGluIEdvdGhpYyBIZWF2eScsJ0ltcGFjdCcsc2Fucy1zZXJpZiIKICAgIGZvbnQtc2l6ZT0iMTA0IgogICAgZm9udC13ZWlnaHQ9IjkwMCIKICAgIGxldHRlci1zcGFjaW5nPSItMyIKICAgIGZpbGw9InVybCgjdGcpIgogID5WSVRBTDwvdGV4dD4KICA8dGV4dAogICAgeD0iMjAwIiB5PSIyMTUiCiAgICBmb250LWZhbWlseT0iJ0FyaWFsJywnSGVsdmV0aWNhIE5ldWUnLHNhbnMtc2VyaWYiCiAgICBmb250LXNpemU9IjMwIgogICAgZm9udC13ZWlnaHQ9IjQwMCIKICAgIGxldHRlci1zcGFjaW5nPSIzIgogICAgZmlsbD0idXJsKCNzZykiCiAgPkZJVE5FU1MgQ09BQ0g8L3RleHQ+CjwvZz4KCjwvc3ZnPgo=" alt="VITAL" style="height:28px;width:auto;display:block;" /></span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-pill" id="sync-pill">2 sources synced</div>
+    </div>
+  </div>
+  <div class="dash-body">
+    <div class="coach-banner" onclick="goTo('coach')">
+      <div class="coach-icon">⚡</div>
+      <div class="coach-banner-body">
+        <div class="coach-banner-label">VITAL COACH · NOW</div>
+        <div class="coach-banner-text" id="coach-banner-text">Loading your morning insight...</div>
+        <div class="coach-banner-cta">Ask a follow-up →</div>
+      </div>
+    </div>
+    <div class="section-label">Today's corrected metrics</div>
+    <div class="metric-grid" id="metric-grid"></div>
+    <div class="section-label">Insights</div>
+    <div class="insight-list" id="insight-list"></div>
+  </div>
+  <div class="bottom-nav">
+    <div class="bnav-item active" onclick="goTo('dash')"><div class="bnav-icon">⌂</div>Home</div>
+    <div class="bnav-item" onclick="goTo('coach')"><div class="bnav-icon">⚡</div>Coach</div>
+    <div class="bnav-item"><div class="bnav-icon">◎</div>Profile</div>
+  </div>
+</div>
+
+<!-- COACH CHAT -->
+<div id="screen-coach" class="screen">
+  <div class="coach-header">
+    <button class="back-btn" onclick="goTo('dash')">←</button>
+    <div class="coach-avatar">⚡</div>
+    <div class="coach-header-body">
+      <div class="coach-header-name" style="display:flex;align-items:center;gap:6px;">
+        <img src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjgwIDI4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB3aWR0aD0iNjgwIiBoZWlnaHQ9IjI4MCI+Cjx0aXRsZT5WSVRBTCBGaXRuZXNzIENvYWNoIGxvZ288L3RpdGxlPgo8ZGVzYz5WSVRBTCB3b3JkbWFyayBhbmQgRml0bmVzcyBDb2FjaCBzdWJ0aXRsZSBjb250YWluZWQgd2l0aGluIG92YWwsIFYtaGVhcnRiZWF0IGljb24gYXQgbGVmdCBlZGdlPC9kZXNjPgo8ZGVmcz4KICA8cmFkaWFsR3JhZGllbnQgaWQ9Im9nIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjRkZGRkZGIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjUwJSIgIHN0b3AtY29sb3I9IiNFQUYwRjgiLz4KICAgIDxzdG9wIG9mZnNldD0iODIlIiAgc3RvcC1jb2xvcj0iI0M4RDREQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOUVCMEI4IiBzdG9wLW9wYWNpdHk9IjAuNCIvPgogIDwvcmFkaWFsR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJ2ZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiAgIHN0b3AtY29sb3I9IiM4RkEwQzAiLz4KICAgIDxzdG9wIG9mZnNldD0iMzAlIiAgc3RvcC1jb2xvcj0iIzRCNkZEOCIvPgogICAgPHN0b3Agb2Zmc2V0PSI1NSUiICBzdG9wLWNvbG9yPSIjMjU0MEY4Ii8+CiAgICA8c3RvcCBvZmZzZXQ9Ijc4JSIgIHN0b3AtY29sb3I9IiM2RTVFRjQiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0M4QjBFMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJoZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjMEFCQUZDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjMwJSIgIHN0b3AtY29sb3I9IiMxMDgwRkEiLz4KICAgIDxzdG9wIG9mZnNldD0iNjIlIiAgc3RvcC1jb2xvcj0iIzdCMUVGQyIvPgogICAgPHN0b3Agb2Zmc2V0PSI4NSUiICBzdG9wLWNvbG9yPSIjQUEyOEVDIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNDMDY4RTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxsaW5lYXJHcmFkaWVudCBpZD0idGciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiICAgc3RvcC1jb2xvcj0iI0RDQzhEQyIvPgogICAgPHN0b3Agb2Zmc2V0PSIxNSUiICBzdG9wLWNvbG9yPSIjQkFENEY0Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjM4JSIgIHN0b3AtY29sb3I9IiMyNTgxRTUiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzFGNjhEOCIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJzZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMCUiPgogICAgPHN0b3Agb2Zmc2V0PSIwJSIgICBzdG9wLWNvbG9yPSIjNzhCOEY2Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMyQjdFRTAiLz4KICA8L2xpbmVhckdyYWRpZW50PgogIDxjbGlwUGF0aCBpZD0ib2MiPgogICAgPGVsbGlwc2UgY3g9IjM0MCIgY3k9IjE0MCIgcng9IjMxOCIgcnk9IjEyOCIvPgogIDwvY2xpcFBhdGg+CjwvZGVmcz4KCjxyZWN0IHdpZHRoPSI2ODAiIGhlaWdodD0iMjgwIiBmaWxsPSIjMDM0NDM2Ii8+CjxlbGxpcHNlIGN4PSIzNDAiIGN5PSIxNDAiIHJ4PSIzMTgiIHJ5PSIxMjgiIGZpbGw9InVybCgjb2cpIi8+Cgo8ZyBjbGlwLXBhdGg9InVybCgjb2MpIj4KICA8cG9seWdvbiBwb2ludHM9IjMwLDYwICA1NCw2MCAgMTA4LDIwMCAgODQsMjAwIiBmaWxsPSJ1cmwoI3ZnKSIvPgogIDxwb2x5Z29uIHBvaW50cz0iODQsMjAwICAxMDgsMjAwICAxNDYsMTA4ICAxMjIsMTA4IiBmaWxsPSJ1cmwoI3ZnKSIgb3BhY2l0eT0iMC44OCIvPgogIDxwb2x5Z29uIHBvaW50cz0iNDIsNjAgIDU0LDYwICAxMDgsMjAwICA5NiwyMDAiIGZpbGw9IiMwQTIwQzgiIG9wYWNpdHk9IjAuMTYiLz4KICA8cG9seWxpbmUKICAgIHBvaW50cz0iMzQsMTQyICA3MiwxNDIgIDg0LDE0MiAgOTYsODYgIDExMCwxOTYgIDEyMiwxMTQgIDEzNiwxNDIgIDE4MiwxNDIiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSJ1cmwoI2hnKSIKICAgIHN0cm9rZS13aWR0aD0iNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiCiAgLz4KICA8Y2lyY2xlIGN4PSI5NiIgY3k9Ijg2IiByPSI1IiAgZmlsbD0iI0Y4QTAzMCIgb3BhY2l0eT0iMC45NSIvPgogIDxjaXJjbGUgY3g9Ijk2IiBjeT0iODYiIHI9IjEwIiBmaWxsPSIjRjhBMDMwIiBvcGFjaXR5PSIwLjIyIi8+CiAgPHRleHQKICAgIHg9IjE5NiIgeT0iMTY4IgogICAgZm9udC1mYW1pbHk9IidBcmlhbCBCbGFjaycsJ0ZyYW5rbGluIEdvdGhpYyBIZWF2eScsJ0ltcGFjdCcsc2Fucy1zZXJpZiIKICAgIGZvbnQtc2l6ZT0iMTA0IgogICAgZm9udC13ZWlnaHQ9IjkwMCIKICAgIGxldHRlci1zcGFjaW5nPSItMyIKICAgIGZpbGw9InVybCgjdGcpIgogID5WSVRBTDwvdGV4dD4KICA8dGV4dAogICAgeD0iMjAwIiB5PSIyMTUiCiAgICBmb250LWZhbWlseT0iJ0FyaWFsJywnSGVsdmV0aWNhIE5ldWUnLHNhbnMtc2VyaWYiCiAgICBmb250LXNpemU9IjMwIgogICAgZm9udC13ZWlnaHQ9IjQwMCIKICAgIGxldHRlci1zcGFjaW5nPSIzIgogICAgZmlsbD0idXJsKCNzZykiCiAgPkZJVE5FU1MgQ09BQ0g8L3RleHQ+CjwvZz4KCjwvc3ZnPgo=" alt="VITAL" style="height:20px;width:auto;display:block;" />
+        <span style="color:#1D9E75;font-size:11px;font-weight:500;font-family:monospace">Coach</span>
+      </div>
+      <div class="coach-header-status" id="coach-status">Reading your data...</div>
+    </div>
+  </div>
+  <div class="chat-body" id="chat-body"></div>
+  <div style="background:var(--surface);border-top:1px solid var(--border);padding:.75rem 1.25rem;max-width:680px;width:100%;margin:0 auto">
+    <div class="api-key-row" id="api-key-row">
+      <input class="api-key-input" id="api-key-input" type="password" placeholder="Paste your Anthropic API key to activate the coach (sk-ant-...)">
+      <button class="btn btn-primary btn-sm" onclick="saveKey()">Connect</button>
+    </div>
+    <div class="quick-chips" id="quick-chips">
+      <div class="chip" onclick="sendQuick('Should I work out hard today?')">Should I train hard today?</div>
+      <div class="chip" onclick="sendQuick('Why does my calorie number look different here?')">Why is my calorie count different?</div>
+      <div class="chip" onclick="sendQuick('What pattern have you noticed this week?')">What patterns do you see?</div>
+      <div class="chip" onclick="sendQuick('Give me a plan for today based on my data.')">Plan my day</div>
+    </div>
+    <div class="chat-input-area" style="padding:0;border:none;background:none">
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask your coach anything..." onkeydown="inputKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendMessage()">↑</button>
+      </div>
+    </div>
+    <div class="api-warning" id="api-warning"></div>
+  </div>
+</div>
+
+
+
+<script>
+
+// ─────────────────────────────────────────────
+// VITAL App — Supabase Connected
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// VITAL · Supabase Integration Layer
+// Injected into vital-app.html
+// ─────────────────────────────────────────────
+
+const SUPABASE_URL      = 'https://hvglyberbehhlxmcdonj.supabase.co';
+// ── CONFIGURATION ─────────────────────────────
+// Paste your Supabase ANON key below (Settings → API → anon public)
+// This is safe to include in frontend code — RLS policies protect your data
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Z2x5YmVyYmVoaGx4bWNkb25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODA0NjksImV4cCI6MjA5ODI1NjQ2OX0.ulcvX_cOtJVLLUU7qqI1iJRzwW0FwzZyaHA_mkFXK6Y';
+
+// ── Load Supabase SDK from CDN ──
+let sb = null;
+async function initSupabase() {
+  if (sb) return sb;
+  // Wait for SDK to load
+  await new Promise(resolve => {
+    const check = setInterval(() => {
+      if (window.supabase) { clearInterval(check); resolve(); }
+    }, 50);
+    setTimeout(() => { clearInterval(check); resolve(); }, 3000);
+  });
+  if (window.supabase) {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase connected ✓');
+  } else {
+    console.warn('Supabase SDK not loaded — running in demo mode');
+  }
+  return sb;
+}
+
+// ── AUTH ──────────────────────────────────────
+
+async function sbSignUp(email, password) {
+  if (!sb) return { error: { message: 'Demo mode — Supabase not connected' } };
+  const { data, error } = await sb.auth.signUp({ email, password });
+  return { data, error };
+}
+
+async function sbSignIn(email, password) {
+  if (!sb) return { error: { message: 'Demo mode' } };
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  return { data, error };
+}
+
+async function sbSignOut() {
+  if (!sb) return;
+  await sb.auth.signOut();
+}
+
+async function sbCurrentUser() {
+  if (!sb) return null;
+  const { data: { user } } = await sb.auth.getUser();
+  return user;
+}
+
+// ── PROFILE ───────────────────────────────────
+
+async function sbSaveProfile(profileData) {
+  if (!sb) return { error: null }; // demo mode — silently pass
+  const user = await sbCurrentUser();
+  if (!user) return { error: { message: 'Not logged in' } };
+
+  const { data, error } = await sb
+    .from('user_profiles')
+    .upsert({
+      user_id:               user.id,
+      age:                   profileData.age,
+      weight_kg:             profileData.weight,
+      skin_tone_fitzpatrick: profileData.skin,
+      fitness_level:         profileData.fitness,
+      primary_goal:          profileData.goal,
+      coaching_mode:         profileData.mh,
+      onboarding_complete:   true,
+      updated_at:            new Date().toISOString(),
+    }, { onConflict: 'user_id' })
+    .select().single();
+  return { data, error };
+}
+
+async function sbGetProfile() {
+  if (!sb) return { data: null, error: null };
+  const { data, error } = await sb
+    .from('user_profiles')
+    .select('*')
+    .single();
+  return { data, error };
+}
+
+// ── COACH SESSIONS ────────────────────────────
+
+async function sbStartSession(contextSnapshot) {
+  if (!sb) return { data: { id: 'demo-session' }, error: null };
+  const user = await sbCurrentUser();
+  if (!user) return { data: { id: 'demo-session' }, error: null };
+
+  const { data, error } = await sb
+    .from('coach_sessions')
+    .insert({
+      user_id:          user.id,
+      session_type:     'chat',
+      context_snapshot: contextSnapshot,
+      model_version:    'claude-sonnet-4-6',
+    })
+    .select().single();
+  return { data, error };
+}
+
+async function sbSaveMessage(sessionId, role, content, guardrailTriggered = false) {
+  if (!sb || sessionId === 'demo-session') return { error: null };
+  const user = await sbCurrentUser();
+  if (!user) return { error: null };
+
+  const { error } = await sb
+    .from('coach_messages')
+    .insert({
+      session_id:          sessionId,
+      user_id:             user.id,
+      role,
+      content,
+      guardrail_triggered: guardrailTriggered,
+    });
+  return { error };
+}
+
+async function sbEndSession(sessionId, inputTokens, outputTokens) {
+  if (!sb || sessionId === 'demo-session') return;
+  await sb
+    .from('coach_sessions')
+    .update({
+      ended_at:      new Date().toISOString(),
+      input_tokens:  inputTokens,
+      output_tokens: outputTokens,
+    })
+    .eq('id', sessionId);
+}
+
+async function sbGetRecentMessages(sessionId, limit = 20) {
+  if (!sb || sessionId === 'demo-session') return [];
+  const { data } = await sb
+    .from('coach_messages')
+    .select('role, content, sent_at')
+    .eq('session_id', sessionId)
+    .order('sent_at', { ascending: true })
+    .limit(limit);
+  return data || [];
+}
+
+// ── DAILY SUMMARY ─────────────────────────────
+
+async function sbSaveDailySummary(metrics) {
+  if (!sb) return;
+  const user = await sbCurrentUser();
+  if (!user) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  await sb
+    .from('daily_summaries')
+    .upsert({
+      user_id:            user.id,
+      summary_date:       today,
+      calories_raw:       metrics.rawCal,
+      calories_corrected: metrics.correctedCal,
+      calorie_conf:       metrics.calConf,
+      sleep_duration_h:   metrics.sleepH,
+      sleep_conf:         metrics.sleepConf,
+      rhr:                metrics.rhr,
+      recovery_signal:    metrics.recovery,
+      coach_insight:      metrics.coachInsight,
+    }, { onConflict: 'user_id,summary_date' });
+}
+
+async function sbGetRecentSummaries(days = 14) {
+  if (!sb) return [];
+  const user = await sbCurrentUser();
+  if (!user) return [];
+
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+
+  const { data } = await sb
+    .from('daily_summaries')
+    .select('*')
+    .gte('summary_date', from.toISOString().split('T')[0])
+    .order('summary_date', { ascending: true });
+  return data || [];
+}
+
+
+// ── APP STATE ─────────────────────────────────
+const state = {
+  fitness: 'trained', goal: 'performance', age: 31,
+  weight: 75, rhr: 58, hrv: 52, skin: 3, mh: 'neutral',
+  apiKey: '', obStep: 1,
+  currentUser: null,
+  sessionId: null,
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+};
+
+const obSteps = 5;
+const obProgress = [14,28,57,71,86,100];
+
+// ── AUTH SCREENS ──────────────────────────────
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+}
+function showAuthLoading(btn, loading) {
+  if (btn) btn.disabled = loading;
+  const el = document.getElementById('auth-loading');
+  if (el) el.style.display = loading ? 'block' : 'none';
+}
+
+async function handleSignUp() {
+  const email    = document.getElementById('auth-email')?.value?.trim();
+  const password = document.getElementById('auth-password')?.value;
+  const btn      = document.getElementById('auth-submit-btn');
+  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  // Demo mode — no Supabase
+  if (!sb) { state.currentUser = { id: 'demo', email }; goTo('onboard'); return; }
+  showAuthLoading(btn, true); showAuthError('');
+  const { data, error } = await sbSignUp(email, password);
+  showAuthLoading(btn, false);
+  if (error) { showAuthError(error.message); return; }
+  state.currentUser = data.user;
+  // New user — go to onboarding
+  goTo('onboard');
+}
+
+async function handleSignIn() {
+  const email    = document.getElementById('auth-email')?.value?.trim();
+  const password = document.getElementById('auth-password')?.value;
+  const btn      = document.getElementById('auth-submit-btn');
+  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  // Demo mode — no Supabase
+  if (!sb) { state.currentUser = { id: 'demo', email }; goTo('onboard'); return; }
+  showAuthLoading(btn, true); showAuthError('');
+  const { data, error } = await sbSignIn(email, password);
+  showAuthLoading(btn, false);
+  if (error) { showAuthError(error.message); return; }
+  state.currentUser = data.user;
+  // Load their profile
+  const { data: profile } = await sbGetProfile();
+  if (profile) {
+    state.fitness = profile.fitness_level  || state.fitness;
+    state.goal    = profile.primary_goal   || state.goal;
+    state.age     = profile.age            || state.age;
+    state.weight  = profile.weight_kg      || state.weight;
+    state.skin    = profile.skin_tone_fitzpatrick || state.skin;
+    state.mh      = profile.coaching_mode  || state.mh;
+    state.rhr     = profile.rhr_baseline   || state.rhr;
+    state.hrv     = profile.hrv_baseline   || state.hrv;
+  }
+  // Returning user with complete profile → go to dash
+  if (profile?.onboarding_complete) goTo('dash');
+  else goTo('onboard');
+}
+
+// Toggle between sign in / sign up
+function toggleAuthMode() {
+  const title    = document.getElementById('auth-title');
+  const subBtn   = document.getElementById('auth-submit-btn');
+  const toggleEl = document.getElementById('auth-toggle');
+  const modeEl   = document.getElementById('auth-mode');
+  const isSignIn = modeEl?.dataset.mode === 'signin';
+  if (modeEl) modeEl.dataset.mode = isSignIn ? 'signup' : 'signin';
+  if (title)  title.textContent   = isSignIn ? 'Create your account' : 'Welcome back';
+  if (subBtn) subBtn.textContent  = isSignIn ? 'Create account' : 'Sign in';
+  if (toggleEl) toggleEl.innerHTML = isSignIn
+    ? 'Already have an account? <a href="#" onclick="toggleAuthMode()">Sign in</a>'
+    : 'New to VITAL? <a href="#" onclick="toggleAuthMode()">Create account</a>';
+  if (subBtn) subBtn.onclick = isSignIn ? handleSignUp : handleSignIn;
+  showAuthError('');
+}
+
+// ── NAVIGATION ────────────────────────────────
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  if (screen === 'dash')  buildDash();
+  if (screen === 'coach') initCoach();
+}
+
+// ── ONBOARDING ────────────────────────────────
+function pick(btn) {
+  const group = btn.dataset.group;
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  state[group] = btn.dataset.val;
+}
+function pickSkin(el, val) {
+  document.querySelectorAll('.skin-swatch').forEach(s => s.classList.remove('sel'));
+  el.classList.add('sel');
+  state.skin = val;
+}
+
+async function obNext() {
+  if (state.obStep === 3) {
+    state.age    = parseInt(document.getElementById('f-age').value)    || 31;
+    state.weight = parseInt(document.getElementById('f-weight').value) || 75;
+    state.rhr    = parseInt(document.getElementById('f-rhr').value)    || 58;
+    state.hrv    = parseInt(document.getElementById('f-hrv').value)    || 52;
+  }
+  if (state.obStep < obSteps) {
+    document.getElementById('ob-' + state.obStep).classList.remove('active');
+    state.obStep++;
+    document.getElementById('ob-' + state.obStep).classList.add('active');
+    document.getElementById('ob-progress').style.width = obProgress[state.obStep - 1] + '%';
+    document.getElementById('ob-back-btn').style.display = state.obStep > 1 ? 'block' : 'none';
+    if (state.obStep === obSteps) document.getElementById('ob-next-btn').textContent = 'Go to my dashboard';
+  } else {
+    // Save profile to Supabase
+    const btn = document.getElementById('ob-next-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    const { error } = await sbSaveProfile(state);
+    if (error) console.warn('Profile save error:', error.message);
+    if (btn) { btn.disabled = false; }
+    goTo('dash');
+  }
+}
+
+function obBack() {
+  if (state.obStep > 1) {
+    document.getElementById('ob-' + state.obStep).classList.remove('active');
+    state.obStep--;
+    document.getElementById('ob-' + state.obStep).classList.add('active');
+    document.getElementById('ob-progress').style.width = obProgress[state.obStep - 1] + '%';
+    document.getElementById('ob-next-btn').textContent = 'Continue';
+    if (state.obStep === 1) document.getElementById('ob-back-btn').style.display = 'none';
+  }
+}
+
+// ── CORRECTION ENGINE ─────────────────────────
+function correctCalories(rawCal, activityType) {
+  const fm = { beginner:1.08, casual:0.98, trained:0.78, athlete:0.68 };
+  const am = { cardio:1.0, strength:0.72, hiit:0.85, cycling:0.90, walk:0.95 };
+  return Math.round(rawCal * (fm[state.fitness]||0.85) * (am[activityType]||0.90));
+}
+function sleepConfidence(h) { return h >= 6 ? 0.82 : h >= 5 ? 0.75 : 0.65; }
+function hrConfidence() {
+  const p = {1:0,2:0,3:0.02,4:0.08,5:0.15,6:0.20};
+  return Math.round((0.95-(p[state.skin]||0))*100);
+}
+function getMetrics() {
+  const rawCal=487, correctedCal=correctCalories(rawCal,'cardio');
+  const sleepH=5.4, sleepConf=sleepConfidence(sleepH), hrConf=hrConfidence();
+  return { rawCal, correctedCal, sleepH, sleepConf, hrConf,
+    calConf: 0.68, rhr: state.rhr+8,
+    recovery: (state.hrv<40||sleepH<5.5) ? 'critical' : 'low',
+    coachInsight: '' };
+}
+
+// ── DASHBOARD ─────────────────────────────────
+async function buildDash() {
+  const m = getMetrics();
+  const bannerTexts = {
+    motivated: `HRV is down 18% and sleep was short at ${m.sleepH}h. Save the hard session — recovery data says Thursday is your window.`,
+    neutral:   `Your recovery signals are below baseline today. HRV down, sleep short. An easy session or rest would serve you better than pushing hard.`,
+    gentle:    `Your body is asking for rest today — and that's completely okay. Sleep was shorter than your usual pattern and your HRV is showing it.`,
+    mh:        `You had a shorter sleep night and your body is recovering. Today looks like a good day for something gentle.`
+  };
+  document.getElementById('coach-banner-text').textContent = bannerTexts[state.mh]||bannerTexts.neutral;
+
+  const metrics = [
+    { val:`${m.correctedCal}`, lbl:'cal burned (corrected)', delta:`was ${m.rawCal} raw`, deltaClass:'delta-good', conf:'68% conf' },
+    { val:`${m.sleepH}h`,      lbl:'sleep duration',         delta:'−22 min vs avg',      deltaClass:'delta-warn', conf:`${Math.round(m.sleepConf*100)}% conf` },
+    { val:`${m.rhr}`,          lbl:'resting HR (bpm)',        delta:`+8 vs baseline`,      deltaClass:'delta-bad',  conf:`${m.hrConf}% conf` },
+  ];
+  document.getElementById('metric-grid').innerHTML = metrics.map(m=>`
+    <div class="metric-card">
+      <div class="metric-val">${m.val}</div><div class="metric-lbl">${m.lbl}</div>
+      <div class="metric-delta ${m.deltaClass}">${m.delta}</div>
+      <div class="metric-conf">${m.conf}</div>
+    </div>`).join('');
+
+  const insights = [
+    { title:'Calorie correction applied',  sub:`Apple Watch reported ${m.rawCal} cal. Corrected to ${m.correctedCal} based on your fitness level. Don't eat back the difference.`, dot:'var(--teal-400)', conf:'High',  confClass:'conf-high' },
+    { title:'Sleep trend: 7-day decline',  sub:'Duration is down 22 min/night. Stage data unreliable (±40%) — duration trend is the real signal.',                                dot:'var(--amber-400)',conf:'Trend', confClass:'conf-med'  },
+    { title:'Elevated resting HR — day 3', sub:`RHR has been ${m.rhr-2}–${m.rhr} bpm above your baseline for 3 consecutive days. Worth monitoring.`,                             dot:'var(--coral-400)',conf:'Watch', confClass:'conf-low'  },
+  ];
+  document.getElementById('insight-list').innerHTML = insights.map(i=>`
+    <div class="insight-item">
+      <div class="insight-dot" style="background:${i.dot}"></div>
+      <div style="flex:1"><div class="insight-title">${i.title}</div><div class="insight-sub">${i.sub}</div></div>
+      <div class="conf-badge ${i.confClass}">${i.conf}</div>
+    </div>`).join('');
+
+  // Save to Supabase
+  m.coachInsight = bannerTexts[state.mh]||bannerTexts.neutral;
+  await sbSaveDailySummary(m);
+}
+
+// ── COACH CHAT ────────────────────────────────
+let chatHistory = [];
+let apiKeySet   = false;
+
+function saveKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-')) {
+    document.getElementById('api-warning').textContent = 'Paste a valid Anthropic API key (starts with sk-ant-)';
+    return;
+  }
+  state.apiKey = key;
+  apiKeySet    = true;
+  document.getElementById('api-key-row').style.display   = 'none';
+  document.getElementById('api-warning').textContent      = '';
+  document.getElementById('coach-status').textContent     = 'Connected · reading your data';
+}
+
+function buildSystemPrompt() {
+  const m = getMetrics();
+  return `You are VITAL Coach, an AI health and fitness guide.
+USER PROFILE: fitness=${state.fitness}, goal=${state.goal}, age=${state.age}, weight=${state.weight}kg, coaching_mode=${state.mh}
+TODAY'S CORRECTED METRICS: Calories ${m.correctedCal} kcal (raw ${m.rawCal}), Sleep ${m.sleepH}h, RHR ${m.rhr}bpm (baseline ${state.rhr}), HRV ${state.hrv-10}ms (baseline ${state.hrv}), HR sensor conf ${m.hrConf}%, Recovery: LOW
+RULES: Lead with the most actionable insight. Under 120 words unless asked for detail. Never diagnose. When recovery is LOW never recommend hard training. Always use corrected calorie figure. Speak like a knowledgeable friend.${state.mh==='mh'||state.mh==='gentle'?' WELLBEING MODE: no score language, trends only.':''}`;
+}
+
+async function initCoach() {
+  if (chatHistory.length > 0) return;
+  // Start session in Supabase
+  const m = getMetrics();
+  const ctx = { fitness:state.fitness, goal:state.goal, mh:state.mh, metrics:m, date:new Date().toISOString() };
+  const { data } = await sbStartSession(ctx);
+  state.sessionId = data?.id || 'demo-session';
+
+  const openings = {
+    motivated: `I've pulled your data. Calorie correction is live — your ${m.rawCal}-cal burn is actually closer to ${m.correctedCal} given your fitness level. Recovery is low: HRV down, HR elevated. What are you thinking for training?`,
+    neutral:   `Your data is loaded. Calorie correction: ${m.rawCal} → ${m.correctedCal} cal. Recovery signals are running low — HRV down, sleep short, HR elevated. What would you like to dig into?`,
+    gentle:    `Good to see you. Recovery is on the lower side today — completely normal after busy days. No pressure. What's on your mind?`,
+    mh:        `Hello. Your data is all synced. Today seems like a quieter kind of day. What can I help you with?`
+  };
+  const opening = openings[state.mh] || openings.neutral;
+  addMessage('ai', opening);
+  await sbSaveMessage(state.sessionId, 'assistant', opening);
+  document.getElementById('coach-status').textContent = 'Connected · data loaded';
+}
+
+function addMessage(role, content) {
+  const body = document.getElementById('chat-body');
+  const now  = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  const div  = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = `<div class="chat-bubble">${content.replace(/
+/g,'<br>')}</div><div class="chat-time">${now}</div>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  chatHistory.push({ role: role==='ai'?'assistant':'user', content });
+}
+
+function showTyping() {
+  const body = document.getElementById('chat-body');
+  const div  = document.createElement('div');
+  div.className = 'chat-msg ai'; div.id = 'typing-indicator';
+  div.innerHTML  = '<div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+  body.appendChild(div); body.scrollTop = body.scrollHeight;
+}
+function removeTyping() { const t=document.getElementById('typing-indicator'); if(t)t.remove(); }
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+
+  if (!apiKeySet) {
+    document.getElementById('api-warning').textContent = 'Add your Anthropic API key above to activate the coach.';
+    addMessage('user', text);
+    setTimeout(()=>addMessage('ai',"I'd love to help — paste your Anthropic API key above and hit Connect."),500);
+    return;
+  }
+
+  addMessage('user', text);
+  await sbSaveMessage(state.sessionId, 'user', text);
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('coach-status').textContent = 'Thinking...';
+  showTyping();
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-api-key':state.apiKey,
+        'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-6', max_tokens:400,
+        system: buildSystemPrompt(),
+        messages: chatHistory.filter(m=>m.role!=='system')
+      })
+    });
+    const data = await resp.json();
+    removeTyping();
+    if (data.content?.[0]) {
+      const reply = data.content[0].text;
+      addMessage('ai', reply);
+      await sbSaveMessage(state.sessionId, 'assistant', reply);
+      // Track token usage
+      state.totalInputTokens  += data.usage?.input_tokens  || 0;
+      state.totalOutputTokens += data.usage?.output_tokens || 0;
+      document.getElementById('coach-status').textContent = 'Connected · data loaded';
+    } else {
+      addMessage('ai','Something went wrong. Check your API key and try again.');
+    }
+  } catch(e) {
+    removeTyping();
+    addMessage('ai','Connection error — check your API key and internet connection.');
+    document.getElementById('coach-status').textContent = 'Connection error';
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function sendQuick(text) { document.getElementById('chat-input').value=text; sendMessage(); }
+function inputKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
+
+// ── INIT ──────────────────────────────────────
+(async () => {
+  try {
+    await initSupabase();
+    // Check if already logged in
+    if (sb) {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        state.currentUser = session.user;
+        const { data: profile } = await sbGetProfile();
+        if (profile?.onboarding_complete) {
+          state.fitness = profile.fitness_level  || state.fitness;
+          state.goal    = profile.primary_goal   || state.goal;
+          state.mh      = profile.coaching_mode  || state.mh;
+          state.skin    = profile.skin_tone_fitzpatrick || state.skin;
+          state.rhr     = profile.rhr_baseline   || state.rhr;
+          state.hrv     = profile.hrv_baseline   || state.hrv;
+          goTo('dash');
+          return;
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('Supabase init failed, running in demo mode:', e.message);
+  }
+  // Show splash — app works in demo mode even if Supabase fails
+  goTo('splash');
+})();
+
+</script>
+
+
+</body>
+</html>
